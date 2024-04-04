@@ -1,7 +1,3 @@
-' Inspired by https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document
-' TODO: 1. 写两个 Map 分别将样式与 ExtractCitations 以及 ExtractTitlesFromJSON 特例对应起来。
-'       2. 这样就能在一个 vb 脚本中，自动支持多个 citation 样式了。理所当然的，那些极简的没有 title 的 citation 样式，是不会受到支持的。
-
 Private Function isSupportedStyle() As Boolean
     isSupportedStyle = ExtractZoteroStyleId() = "molecular-plant"
 End Function

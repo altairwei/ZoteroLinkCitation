@@ -2,16 +2,22 @@
 
 An MS Word macro that links author-date or number style citations to their bibliography entry. This project was inspired by discussions of [Word: Possibility to link references and bibliography in a document?](https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document)
 
+## Supported Citation Styles
+
+* http://www.zotero.org/styles/molecular-plant
+
+Other styles are still being worked on.
+
 ## How to Use ZoteroLinkCitation
 
 **Important Warning:** Before running the `ZoteroLinkCitation` macro, **please ensure you have backed up your document**. The operations performed by this script are bulk actions that are irreversible. A backup ensures that you can restore your original document in case anything does not go as expected.
 
-This guide is aimed at beginners and provides detailed instructions on importing and running the `ZoteroLinkCitation.vb` script in Microsoft Word. This script, which includes the `ZoteroLinkCitation` macro along with other utility functions, enhances your document with advanced citation linking capabilities.
+This guide is aimed at beginners and provides detailed instructions on importing and running the `ZoteroLinkCitation.bas` script in Microsoft Word. This script, which includes the `ZoteroLinkCitation` macro along with other utility functions, enhances your document with advanced citation linking capabilities.
 
 ### Prerequisites
 
 - Microsoft Word (2016 or later recommended for compatibility).
-- The `ZoteroLinkCitation.vb` file.
+- The `ZoteroLinkCitation.bas` file.
 
 ### Step 1: Accessing the VBA Editor
 
@@ -22,7 +28,7 @@ This guide is aimed at beginners and provides detailed instructions on importing
 
 1. Within the VBA Editor, locate `Normal` in the Project window on the left. Right-click on `Modules` under `Normal`. If `Modules` is not visible, right-click on `Normal` and choose `Insert` > `Module`.
 2. With the new module selected, navigate to `File` > `Import File...` in the VBA Editor's menu.
-3. Locate and select your `ZoteroLinkCitation.vb` file, then click `Open` to import the script.
+3. Locate and select your `ZoteroLinkCitation.bas` file, then click `Open` to import the script.
 
 ### Step 3: Saving Your Macro-Enabled Document
 

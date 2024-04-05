@@ -429,94 +429,96 @@ Public Sub ZoteroLinkCitation()
     Dim aField, iCount As Integer
     For Each aField In ActiveDocument.Fields
         ' Check if the field is a Zotero citation
-        If aField.Type = wdFieldAddin And InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
-            If MsgBox("Processed " & iCount & " citations, and found the next group:" & vbCrLf & vbCrLf & _ 
-                        aField.Result.Text & vbCrLf & vbCrLf & "Do you want to continue?", _
-                        vbYesNo + vbQuestion, "Continue?") = vbNo Then
-                Exit For
-            End If
+        If aField.Type = wdFieldAddin Then
+            If InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
+                If MsgBox("Processed " & iCount & " citations, and found the next group:" & vbCrLf & vbCrLf & _ 
+                            aField.Result.Text & vbCrLf & vbCrLf & "Do you want to continue?", _
+                            vbYesNo + vbQuestion, "Continue?") = vbNo Then
+                    Exit For
+                End If
 
-            Dim Citations() As String
-            Dim Titles() As String
-            Citations = ExtractCitations(aField.Result.Text)
-            Titles = ExtractTitlesFromJSON(aField.Code)
-            AssertArrayLengthsEqual Citations, Titles
+                Dim Citations() As String
+                Dim Titles() As String
+                Citations = ExtractCitations(aField.Result.Text)
+                Titles = ExtractTitlesFromJSON(aField.Code)
+                AssertArrayLengthsEqual Citations, Titles
 
-            Dim i
-            For i = 0 To UBound(Citations)
-                citation = Citations(i)
-                title = Titles(i)
+                Dim i
+                For i = 0 To UBound(Citations)
+                    citation = Citations(i)
+                    title = Titles(i)
 
-                ' Create a sanitized anchor name from the title
-                titleAnchor = CleanTitleAnchor(title)
+                    ' Create a sanitized anchor name from the title
+                    titleAnchor = CleanTitleAnchor(title)
 
-                Dim rngBibliography As Range
+                    Dim rngBibliography As Range
 
-                ' First, get the range of the bookmark "Zotero_Bibliography"
-                Set rngBibliography = ActiveDocument.Bookmarks("Zotero_Bibliography").Range
+                    ' First, get the range of the bookmark "Zotero_Bibliography"
+                    Set rngBibliography = ActiveDocument.Bookmarks("Zotero_Bibliography").Range
 
-                With rngBibliography.Find
-                    .ClearFormatting
-                    .Text = Left(title, 255)
-                    .Forward = True
-                    .Wrap = wdFindStop ' Stop when reaching the end of the range
-                    .Format = False
-                    .MatchCase = False
-                    .MatchWholeWord = False
-                    .MatchWildcards = False
-                    .Execute
-                End With
+                    With rngBibliography.Find
+                        .ClearFormatting
+                        .Text = Left(title, 255)
+                        .Forward = True
+                        .Wrap = wdFindStop ' Stop when reaching the end of the range
+                        .Format = False
+                        .MatchCase = False
+                        .MatchWholeWord = False
+                        .MatchWildcards = False
+                        .Execute
+                    End With
 
-                ' Check if the text was found
-                If rngBibliography.Find.Found Then
-                    ' Create a new range object to represent the found paragraph
-                    Dim rngFound As Range
-                    Set rngFound = rngBibliography.Paragraphs(1).Range
-                    
-                    ' Add a bookmark to the found range
-                    ActiveDocument.Bookmarks.Add Range:=rngFound, Name:=titleAnchor
-                Else
-                    If MsgBox("Not found in bibliography:" & vbCrLf & title & vbCrLf & vbCrLf & _
-                                "Do you want to continue with the next Zotero citation?", _
-                                    vbYesNo + vbCritical, "Error") = vbNo Then
+                    ' Check if the text was found
+                    If rngBibliography.Find.Found Then
+                        ' Create a new range object to represent the found paragraph
+                        Dim rngFound As Range
+                        Set rngFound = rngBibliography.Paragraphs(1).Range
+                        
+                        ' Add a bookmark to the found range
+                        ActiveDocument.Bookmarks.Add Range:=rngFound, Name:=titleAnchor
+                    Else
+                        If MsgBox("Not found in bibliography:" & vbCrLf & title & vbCrLf & vbCrLf & _
+                                    "Do you want to continue with the next Zotero citation?", _
+                                        vbYesNo + vbCritical, "Error") = vbNo Then
+                            GoTo ExitTheMacro
+                        Else
+                            GoTo SkipToNextCitation
+                        End If
+                    End If
+
+                    Dim rng As Range
+                    Set rng = aField.Result
+
+                    With rng.Find
+                        .Text = citation ' Assuming 'citation' is the variable holding the text to find
+                        .Forward = True
+                        .Wrap = wdFindStop ' Ensures the search does not wrap around the document
+                        .Format = False
+                        .MatchCase = False
+                        .MatchWholeWord = False
+                        .MatchWildcards = False
+                        .MatchSoundsLike = False
+                        .MatchAllWordForms = False
+                        Dim found As Boolean
+                        found = .Execute
+                    End With
+
+                    If Not found Then
+                        MsgBox "Not found the citation " & citation, vbOKOnly + vbCritical, "Error"
                         GoTo ExitTheMacro
                     Else
-                        GoTo SkipToNextCitation
+                        Dim hp As Hyperlink
+                        Set hp = ActiveDocument.Hyperlinks.Add(Anchor:=rng, SubAddress:=titleAnchor)
+                        If userTextStyle <> "" Then
+                            hp.Range.style = ActiveDocument.Styles(userTextStyle)
+                        End If
                     End If
-                End If
 
-                Dim rng As Range
-                Set rng = aField.Result
+                    iCount = iCount + 1
 
-                With rng.Find
-                    .Text = citation ' Assuming 'citation' is the variable holding the text to find
-                    .Forward = True
-                    .Wrap = wdFindStop ' Ensures the search does not wrap around the document
-                    .Format = False
-                    .MatchCase = False
-                    .MatchWholeWord = False
-                    .MatchWildcards = False
-                    .MatchSoundsLike = False
-                    .MatchAllWordForms = False
-                    Dim found As Boolean
-                    found = .Execute
-                End With
-
-                If Not found Then
-                    MsgBox "Not found the citation " & citation, vbOKOnly + vbCritical, "Error"
-                    GoTo ExitTheMacro
-                Else
-                    Dim hp As Hyperlink
-                    Set hp = ActiveDocument.Hyperlinks.Add(Anchor:=rng, SubAddress:=titleAnchor)
-                    If userTextStyle <> "" Then
-                        hp.Range.style = ActiveDocument.Styles(userTextStyle)
-                    End If
-                End If
-
-                iCount = iCount + 1
-
-            SkipToNextCitation:
-            Next i
+                SkipToNextCitation:
+                Next i
+            End If
         End If
     Next aField
 

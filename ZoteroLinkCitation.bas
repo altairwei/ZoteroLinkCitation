@@ -3,29 +3,29 @@ Attribute VB_Name = "ZoteroLinkCitation"
 ' altair_wei@outlook.com
 ' https://github.com/altairwei/ZoteroLinkCitation
 
-' Option Explicit
+Option Explicit
 
 '-------------------------------------------------------------------
 ' VBA JSON Parser
 ' https://medium.com/swlh/excel-vba-parse-json-easily-c2213f4d8e7a
 '-------------------------------------------------------------------
 
-Private p&, myTokens, dic
+Private p&, token, dic
 Private Function ParseJSON(json$, Optional key$ = "obj") As Object
     p = 1
-    myTokens = Tokenize(json)
+    token = Tokenize(json)
     Set dic = CreateObject("Scripting.Dictionary")
-    If myTokens(p) = "{" Then ParseObj key Else ParseArr key
+    If token(p) = "{" Then ParseObj key Else ParseArr key
     Set ParseJSON = dic
 End Function
 
 Private Function ParseObj(key$)
     Do: p = p + 1
-        Select Case myTokens(p)
+        Select Case token(p)
             Case "]"
             Case "[":  ParseArr key
             Case "{"
-                       If myTokens(p + 1) = "}" Then
+                       If token(p + 1) = "}" Then
                            p = p + 1
                            dic.Add key, "null"
                        Else
@@ -33,9 +33,9 @@ Private Function ParseObj(key$)
                        End If
                 
             Case "}":  key = ReducePath(key): Exit Do
-            Case ":":  key = key & "." & myTokens(p - 1)
+            Case ":":  key = key & "." & token(p - 1)
             Case ",":  key = ReducePath(key)
-            Case Else: If myTokens(p + 1) <> ":" Then dic.Add key, myTokens(p)
+            Case Else: If token(p + 1) <> ":" Then dic.Add key, token(p)
         End Select
     Loop
 End Function
@@ -43,14 +43,14 @@ End Function
 Private Function ParseArr(key$)
     Dim e&
     Do: p = p + 1
-        Select Case myTokens(p)
+        Select Case token(p)
             Case "}"
             Case "{":  ParseObj key & ArrayID(e)
             Case "[":  ParseArr key
             Case "]":  Exit Do
             Case ":":  key = key & ArrayID(e)
             Case ",":  e = e + 1
-            Case Else: dic.Add key & ArrayID(e), myTokens(p)
+            Case Else: dic.Add key & ArrayID(e), token(p)
         End Select
     Loop
 End Function

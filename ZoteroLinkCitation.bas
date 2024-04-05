@@ -1,3 +1,98 @@
+Attribute VB_Name = "ZoteroLinkCitation"
+' An MS Word macro that links author-date or number style citations to their bibliography entry.
+' altair_wei@outlook.com
+' https://github.com/altairwei/ZoteroLinkCitation
+
+' Option Explicit
+
+'-------------------------------------------------------------------
+' VBA JSON Parser
+' https://medium.com/swlh/excel-vba-parse-json-easily-c2213f4d8e7a
+'-------------------------------------------------------------------
+
+Private p&, myTokens, dic
+Private Function ParseJSON(json$, Optional key$ = "obj") As Object
+    p = 1
+    myTokens = Tokenize(json)
+    Set dic = CreateObject("Scripting.Dictionary")
+    If myTokens(p) = "{" Then ParseObj key Else ParseArr key
+    Set ParseJSON = dic
+End Function
+
+Private Function ParseObj(key$)
+    Do: p = p + 1
+        Select Case myTokens(p)
+            Case "]"
+            Case "[":  ParseArr key
+            Case "{"
+                       If myTokens(p + 1) = "}" Then
+                           p = p + 1
+                           dic.Add key, "null"
+                       Else
+                           ParseObj key
+                       End If
+                
+            Case "}":  key = ReducePath(key): Exit Do
+            Case ":":  key = key & "." & myTokens(p - 1)
+            Case ",":  key = ReducePath(key)
+            Case Else: If myTokens(p + 1) <> ":" Then dic.Add key, myTokens(p)
+        End Select
+    Loop
+End Function
+
+Private Function ParseArr(key$)
+    Dim e&
+    Do: p = p + 1
+        Select Case myTokens(p)
+            Case "}"
+            Case "{":  ParseObj key & ArrayID(e)
+            Case "[":  ParseArr key
+            Case "]":  Exit Do
+            Case ":":  key = key & ArrayID(e)
+            Case ",":  e = e + 1
+            Case Else: dic.Add key & ArrayID(e), myTokens(p)
+        End Select
+    Loop
+End Function
+
+Private Function Tokenize(s$)
+    Const Pattern = """(([^""\\]|\\.)*)""|[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?|\w+|[^\s""']+?"
+    Tokenize = RExtract(s, Pattern, True)
+End Function
+
+Private Function RExtract(s$, Pattern, Optional bGroup1Bias As Boolean, Optional bGlobal As Boolean = True)
+  Dim c&, m, n
+  Dim v()
+  With CreateObject("vbscript.regexp")
+    .Global = bGlobal
+    .MultiLine = False
+    .IgnoreCase = True
+    .Pattern = Pattern
+    If .TEST(s) Then
+      Set m = .Execute(s)
+      ReDim v(1 To m.Count)
+      For Each n In m
+        c = c + 1
+        v(c) = n.value
+        If bGroup1Bias Then If Len(n.submatches(0)) Or n.value = """""" Then v(c) = n.submatches(0)
+      Next
+    End If
+  End With
+  RExtract = v
+End Function
+
+Private Function ArrayID$(e)
+    ArrayID = "(" & e & ")"
+End Function
+
+Private Function ReducePath$(key$)
+    If InStr(key, ".") Then ReducePath = Left(key, InStrRev(key, ".") - 1) Else ReducePath = key
+End Function
+
+'-------------------------------------------------------------------
+' ZoteroLinkCitation Utilities
+'-------------------------------------------------------------------
+
 Private Function isSupportedStyle() As Boolean
     isSupportedStyle = ExtractZoteroStyleId() = "molecular-plant"
 End Function
@@ -149,11 +244,24 @@ Private Sub AssertArrayLengthsEqual(array1 As Variant, array2 As Variant)
     End If
 End Sub
 
+'-------------------------------------------------------------------
+' ZoteroLinkCitation Macro
+'-------------------------------------------------------------------
+
+Private Function ParseCSLCitationJson(ByVal code As String) As Object
+    Dim jsonObj As Object
+    Set jsonObj = ParseJSON(Trim(Replace(code, "ADDIN ZOTERO_ITEM CSL_CITATION", "")), "CSL")
+    Set ParseCSLCitationJson = jsonObj
+End Function
+
 Public Sub ZoteroLinkCitation()
+    Dim styleId As String
+    styleId = ExtractZoteroStyleId()
+
     If Not isSupportedStyle() Then
-        MsgBox "The current citation style is not yet supported: " & ExtractZoteroStyleId(), vbCritical, "Error"
+        MsgBox "The current citation style is not yet supported: " & styleId, vbCritical, "Error"
         Exit Sub
-    End if
+    End If
 
     ' Declare variables for start and end positions
     Dim nStart&, nEnd&
@@ -203,12 +311,17 @@ Public Sub ZoteroLinkCitation()
     ActiveWindow.View.ShowFieldCodes = False
 
     ' Iterate through all fields in the document
+    Dim aField
     For Each aField In ActiveDocument.Fields
         ' Check if the field is a Zotero citation
-        If InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
+        If aField.Type = wdFieldAddin And InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
             If MsgBox("Found " & aField.Result.Text, vbYesNo + vbQuestion, "Continue?") = vbNo Then
                 Exit For
             End If
+
+            Dim obj
+            Set obj = ParseCSLCitationJson(aField.Code)
+            MsgBox obj("CSL.citationItems(0).itemData.title")
 
             Dim Citations() As String
             Dim Titles() As String
@@ -216,6 +329,7 @@ Public Sub ZoteroLinkCitation()
             Titles = ExtractTitlesFromJSON(aField.Code)
             AssertArrayLengthsEqual Citations, Titles
 
+            Dim i
             For i = 0 To UBound(Citations)
                 citation = Citations(i)
                 title = Titles(i)
@@ -281,7 +395,7 @@ Public Sub ZoteroLinkCitation()
                 Else
                     Dim hp As Hyperlink
                     Set hp = ActiveDocument.Hyperlinks.Add(Anchor:=rng, SubAddress:=titleAnchor)
-                    hp.Range.style = ActiveDocument.Styles("交叉引用")
+                    ' hp.Range.style = ActiveDocument.Styles("")
                 End If
 
             SkipToNextCitation:

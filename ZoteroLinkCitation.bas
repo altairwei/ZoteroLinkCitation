@@ -89,44 +89,147 @@ Private Function ReducePath$(key$)
     If InStr(key, ".") Then ReducePath = Left(key, InStrRev(key, ".") - 1) Else ReducePath = key
 End Function
 
+Function GetFilteredValues(dic, match)
+    Dim c&, i&, v, w
+    v = dic.keys
+    ReDim w(1 To dic.Count)
+    For i = 0 To UBound(v)
+        If v(i) Like match Then
+            c = c + 1
+            w(c) = dic(v(i))
+        End If
+    Next
+    ReDim Preserve w(1 To c)
+    GetFilteredValues = w
+End Function
+
+Function GetFilteredTable(dic, cols)
+    Dim c&, i&, j&, v, w, z
+    v = dic.keys
+    z = GetFilteredValues(dic, cols(0))
+    ReDim w(1 To UBound(z), 1 To UBound(cols) + 1)
+    For j = 1 To UBound(cols) + 1
+         z = GetFilteredValues(dic, cols(j - 1))
+         For i = 1 To UBound(z)
+            w(i, j) = z(i)
+         Next
+    Next
+    GetFilteredTable = w
+End Function
+
 '-------------------------------------------------------------------
 ' ZoteroLinkCitation Utilities
 '-------------------------------------------------------------------
 
-Private Function isSupportedStyle() As Boolean
-    isSupportedStyle = ExtractZoteroStyleId() = "molecular-plant"
+Private Function isSupportedStyle(style As String) As Boolean
+    isSupportedStyle = style = "molecular-plant"
 End Function
 
-Private Function ExtractZoteroStyleId() As String
-    Dim zoteroData As String
-    Dim styleId As String
-
-    zoteroData = ActiveDocument.CustomDocumentProperties("ZOTERO_PREF_1").Value
-
-    styleId = ExtractStyleIdFromXML(zoteroData)
-
-    Dim segments() As String
-    segments = Split(styleId, "/")
-    styleId = segments(UBound(segments))
-
-    ExtractZoteroStyleId = styleId
-End Function
-
-Private Function ExtractStyleIdFromXML(xmlContent As String) As String
-    Dim startPos As Long
-    Dim endPos As Long
-    Dim styleId As String
+Private Sub QuickSort(arr As Variant, inLow As Long, inHigh As Long)
+    Dim pivot As String
+    Dim tmpSwap As Variant
+    Dim low As Long
+    Dim high As Long
     
-    startPos = InStr(xmlContent, "style id=")
-    If startPos > 0 Then
-        startPos = startPos + Len("style id=") + 1
-        endPos = InStr(startPos, xmlContent, """")
-        If endPos > startPos Then
-            styleId = Mid(xmlContent, startPos, endPos - startPos)
+    low = inLow
+    high = inHigh
+    pivot = arr((low + high) \ 2)
+    
+    While (low <= high)
+        While (arr(low) < pivot And low < inHigh)
+            low = low + 1
+        Wend
+        
+        While (pivot < arr(high) And high > inLow)
+            high = high - 1
+        Wend
+        
+        If (low <= high) Then
+            tmpSwap = arr(low)
+            arr(low) = arr(high)
+            arr(high) = tmpSwap
+            low = low + 1
+            high = high - 1
         End If
+    Wend
+    
+    If (inLow < high) Then QuickSort arr, inLow, high
+    If (low < inHigh) Then QuickSort arr, low, inHigh
+End Sub
+
+Private Function ExtractZoteroPrefData() As String
+    Dim prop As Variant
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    For Each prop In ActiveDocument.CustomDocumentProperties
+        If Left(prop.Name, 11) = "ZOTERO_PREF" Then
+            dict(prop.Name) = prop.Value
+        End If
+    Next prop
+    
+    Dim sortedKeys As Variant
+    sortedKeys = dict.Keys
+    Call QuickSort(sortedKeys, LBound(sortedKeys), UBound(sortedKeys))
+
+    Dim concatenatedValues As String
+    Dim key As Variant
+    For Each key In sortedKeys
+        concatenatedValues = concatenatedValues & dict(key)
+    Next key
+
+    ExtractZoteroPrefData = concatenatedValues
+End Function
+
+Private Function GetZoteroPrefs() As Object
+    Dim zoteroData As String
+    zoteroData = ExtractZoteroPrefData()
+
+    Dim xmlDoc As Object
+    Set xmlDoc = CreateObject("MSXML2.DOMDocument.6.0")
+
+    xmlDoc.Async = False
+    xmlDoc.LoadXML zoteroData
+
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    If xmlDoc.ParseError.ErrorCode <> 0 Then
+        MsgBox "XML Parse Error: " & xmlDoc.ParseError.Reason
+        Set GetZoteroPrefs = dict
+        Exit Function
+    End If
+
+    Dim dataElem As Object
+    Set dataElem = xmlDoc.SelectSingleNode("//data")
+    If Not dataElem Is Nothing Then
+        dict("data-version") = dataElem.getAttribute("data-version")
+        dict("zotero-version") = dataElem.getAttribute("zotero-version")
     End If
     
-    ExtractStyleIdFromXML = styleId
+    Dim sessionElem As Object
+    Set sessionElem = xmlDoc.SelectSingleNode("//session")
+    If Not sessionElem Is Nothing Then
+        dict("session-id") = sessionElem.getAttribute("id")
+    End If
+
+    Dim styleElem As Object
+    Set styleElem = xmlDoc.SelectSingleNode("//style")
+    If Not styleElem Is Nothing Then
+        Dim segments() As String
+        segments = Split(styleElem.getAttribute("id"), "/")
+        dict("style-id") = segments(UBound(segments))
+        dict("hasBibliography") = styleElem.getAttribute("hasBibliography")
+        dict("bibliographyStyleHasBeenSet") = styleElem.getAttribute("bibliographyStyleHasBeenSet")
+    End If
+
+    Dim prefElem As Object
+    Set prefElem = xmlDoc.SelectSingleNode("//prefs/pref[@name='fieldType']")
+    If Not prefElem Is Nothing Then
+        dict("pref-fieldType") = prefElem.getAttribute("value")
+    End If
+
+    Set GetZoteroPrefs = dict
 End Function
 
 Private Function RemoveSpecifiedHtmlTags(inputString As String, tagsToRemove As Variant) As String
@@ -244,21 +347,27 @@ Private Sub AssertArrayLengthsEqual(array1 As Variant, array2 As Variant)
     End If
 End Sub
 
-'-------------------------------------------------------------------
-' ZoteroLinkCitation Macro
-'-------------------------------------------------------------------
-
 Private Function ParseCSLCitationJson(ByVal code As String) As Object
     Dim jsonObj As Object
     Set jsonObj = ParseJSON(Trim(Replace(code, "ADDIN ZOTERO_ITEM CSL_CITATION", "")), "CSL")
     Set ParseCSLCitationJson = jsonObj
 End Function
 
-Public Sub ZoteroLinkCitation()
-    Dim styleId As String
-    styleId = ExtractZoteroStyleId()
+'-------------------------------------------------------------------
+' ZoteroLinkCitation Macro
+'-------------------------------------------------------------------
 
-    If Not isSupportedStyle() Then
+Public Sub ZoteroLinkCitation()
+    Dim prefs As Object
+    Set prefs = GetZoteroPrefs()
+    If Not prefs("pref-fieldType") = "Field" Then
+        MsgBox "Only support 'Fields' type citations", vbCritical, "Error"
+        Exit Sub
+    End If
+
+    Dim styleId As String
+    styleId = prefs("style-id")
+    If Not isSupportedStyle(styleId) Then
         MsgBox "The current citation style is not yet supported: " & styleId, vbCritical, "Error"
         Exit Sub
     End If
@@ -270,7 +379,7 @@ Public Sub ZoteroLinkCitation()
     nEnd = Selection.End
     ' Disable screen updating for performance
     Application.ScreenUpdating = False
-    
+
     ' Variables for processing
     Dim citation As String
     Dim title As String
@@ -311,17 +420,15 @@ Public Sub ZoteroLinkCitation()
     ActiveWindow.View.ShowFieldCodes = False
 
     ' Iterate through all fields in the document
-    Dim aField
+    Dim aField, iCount As Integer
     For Each aField In ActiveDocument.Fields
         ' Check if the field is a Zotero citation
         If aField.Type = wdFieldAddin And InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
-            If MsgBox("Found " & aField.Result.Text, vbYesNo + vbQuestion, "Continue?") = vbNo Then
+            If MsgBox("Processed " & iCount & " citations, and found the next group:" & vbCrLf & vbCrLf & _ 
+                        aField.Result.Text & vbCrLf & vbCrLf & "Do you want to continue?", _
+                        vbYesNo + vbQuestion, "Continue?") = vbNo Then
                 Exit For
             End If
-
-            Dim obj
-            Set obj = ParseCSLCitationJson(aField.Code)
-            MsgBox obj("CSL.citationItems(0).itemData.title")
 
             Dim Citations() As String
             Dim Titles() As String
@@ -366,7 +473,7 @@ Public Sub ZoteroLinkCitation()
                     If MsgBox("Not found in bibliography:" & vbCrLf & title & vbCrLf & vbCrLf & _
                                 "Do you want to continue with the next Zotero citation?", _
                                     vbYesNo + vbCritical, "Error") = vbNo Then
-                        Exit Sub
+                        GoTo ExitTheMacro
                     Else
                         GoTo SkipToNextCitation
                     End If
@@ -391,17 +498,24 @@ Public Sub ZoteroLinkCitation()
 
                 If Not found Then
                     MsgBox "Not found the citation " & citation, vbOKOnly + vbCritical, "Error"
-                    Exit Sub
+                    GoTo ExitTheMacro
                 Else
                     Dim hp As Hyperlink
                     Set hp = ActiveDocument.Hyperlinks.Add(Anchor:=rng, SubAddress:=titleAnchor)
                     ' hp.Range.style = ActiveDocument.Styles("")
                 End If
 
+                iCount = iCount + 1
+
             SkipToNextCitation:
             Next i
         End If
     Next aField
+
+ExitTheMacro:
+
+    MsgBox "Linked " & iCount & " Zotero citations.", vbInformation, "Finish"
+
     ' Restore the original selection
     ActiveDocument.Range(nStart, nEnd).Select
     ' Re-enable screen updating

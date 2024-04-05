@@ -358,6 +358,7 @@ End Function
 '-------------------------------------------------------------------
 
 Public Sub ZoteroLinkCitation()
+    ' Do not support Bookmark-type citations
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()
     If Not prefs("pref-fieldType") = "Field" Then
@@ -371,6 +372,11 @@ Public Sub ZoteroLinkCitation()
         MsgBox "The current citation style is not yet supported: " & styleId, vbCritical, "Error"
         Exit Sub
     End If
+
+    Dim userTextStyle As String
+    userTextStyle = InputBox(title := "Set a style for linked citations?", _
+                             prompt := "If you want to set a certain style for linked citations," & _
+                                        " enter the name of that style below.")
 
     ' Declare variables for start and end positions
     Dim nStart&, nEnd&
@@ -502,7 +508,9 @@ Public Sub ZoteroLinkCitation()
                 Else
                     Dim hp As Hyperlink
                     Set hp = ActiveDocument.Hyperlinks.Add(Anchor:=rng, SubAddress:=titleAnchor)
-                    ' hp.Range.style = ActiveDocument.Styles("")
+                    If userTextStyle <> "" Then
+                        hp.Range.style = ActiveDocument.Styles(userTextStyle)
+                    End If
                 End If
 
                 iCount = iCount + 1

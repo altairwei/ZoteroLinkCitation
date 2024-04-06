@@ -360,6 +360,9 @@ Public Sub ZoteroLinkCitation()
                              prompt := "If you want to set a certain style for linked citations," & _
                                         " enter the name of that style below.")
 
+    Dim debugging As Boolean
+    debugging = (MsgBox("Do you want run in debug mode?", vbYesNo + vbQuestion, "Debug?") = vbYes)
+
     ' Declare variables for start and end positions
     Dim nStart&, nEnd&
     ' Capture current selection positions
@@ -403,10 +406,12 @@ Public Sub ZoteroLinkCitation()
         ' Check if the field is a Zotero citation
         If aField.Type = wdFieldAddin Then
             If InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
-                If MsgBox("Processed " & iCount & " citations, and found the next group:" & vbCrLf & vbCrLf & _ 
-                            aField.Result.Text & vbCrLf & vbCrLf & "Do you want to continue?", _
-                            vbYesNo + vbQuestion, "Continue?") = vbNo Then
-                    Exit For
+                If debugging Then
+                    If MsgBox("Processed " & iCount & " citations, and found the next group:" & vbCrLf & vbCrLf & _ 
+                                aField.Result.Text & vbCrLf & vbCrLf & "Do you want to continue?", _
+                                vbYesNo + vbQuestion, "Continue?") = vbNo Then
+                        Exit For
+                    End If
                 End If
 
                 Dim i, cit As Citation, cits() As Citation

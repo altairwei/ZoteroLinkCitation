@@ -446,7 +446,8 @@ Public Sub ZoteroLinkCitation()
                         ' Create a new range object to represent the found paragraph
                         Dim rngFound As Range
                         Set rngFound = rngBibliography.Paragraphs(1).Range
-                        
+                        ' Ensure that the Range does not extend to the end of the bibliography field
+                        rngFound.End = rngFound.End - 1
                         ' Add a bookmark to the found range
                         ActiveDocument.Bookmarks.Add Range:=rngFound, Name:=titleAnchor
                     Else

@@ -5,6 +5,11 @@ Attribute VB_Name = "ZoteroLinkCitation"
 
 Option Explicit
 
+Type Citation
+    Title As String
+    PlainCitation As String
+End Type
+
 '-------------------------------------------------------------------
 ' VBA JSON Parser
 ' https://medium.com/swlh/excel-vba-parse-json-easily-c2213f4d8e7a
@@ -257,87 +262,64 @@ Private Function RemoveHtmlTags(inputString As String) As String
     RemoveHtmlTags = RemoveSpecifiedHtmlTags(inputString, tagsToRemove)
 End Function
 
-Private Function CleanTitleAnchor(ByVal title As String) As String
-    Dim charsToReplace As Variant
-    Dim replacementChar As String
+Private Function ConvertToBookmarkName(ByVal str As String) As String
+    Dim result As String
     Dim i As Integer
-    
-    ' List of characters to replace
-    charsToReplace = Array(" ", "#", "&", ":", ",", "-", ".", "(", ")", "?", "!")
-    ' Character used for replacement
-    replacementChar = "_"
-    
-    ' Loop through the array of characters to replace
-    For i = 0 To UBound(charsToReplace)
-        title = Replace(title, charsToReplace(i), replacementChar)
+
+    ' Replace illegal characters
+    result = Replace(str, " ", "_")
+    For i = 1 To Len(result)
+        ' Check each character and replace if not alphanumeric or underscore
+        If Not (Mid(result, i, 1) Like "[A-Za-z0-9_]") Then
+            Mid(result, i, 1) = "_"
+        End If
     Next i
-    
-    ' Truncate to 40 characters
-    CleanTitleAnchor = Left(title, 40)
+
+    ' Avoid starting with a digit
+    If Left(result, 1) Like "[0-9]" Then
+        result = "_" & result
+    End If
+
+    ' Limit the length to 40 characters
+    If Len(result) > 40 Then
+        result = Left(result, 40)
+    End If
+
+    ConvertToBookmarkName = result
 End Function
 
-Private Function ExtractCitations(ByVal inputString As String) As String()
+Private Sub ExtractAuthorYearCitations(field, ByRef citations() As Citation)
+    Dim jsonCSL As Object
+    Set jsonCSL = ParseCSLCitationJson(field.code)
+
+    Dim plainCits() As String
+    plainCits = SplitPlainCitations(jsonCSL("CSL.properties.plainCitation"))
+
+    Dim i As Integer
+    ReDim citations(0 To UBound(plainCits))
+
+    For i = 0 To UBound(plainCits)
+        citations(i).PlainCitation = plainCits(i)
+        citations(i).Title = RemoveHtmlTags(jsonCSL("CSL.citationItems(" & i & ").itemData.title"))
+    Next i
+End Sub
+
+Private Function SplitPlainCitations(ByVal inputString As String, Optional sep As String = ";") As String()
     Dim parts() As String
     Dim i As Integer
 
+    ' Remove brackets
     inputString = Mid(inputString, 2, Len(inputString) - 2)
 
-    ' Split the string by semicolon
-    parts = Split(inputString, ";")
+    ' Split the string
+    parts = Split(inputString, sep)
 
     ' Trim spaces from each part
     For i = LBound(parts) To UBound(parts)
         parts(i) = Trim(parts(i))
     Next i
 
-    ' Return the array of trimmed parts
-    ExtractCitations = parts
-End Function
-
-Private Function ExtractTitlesFromJSON(jsonString As String) As String()
-    Dim startPos As Long
-    Dim endPos As Long
-    Dim currentPos As Long
-    Dim Titles() As String
-    Dim titleCount As Integer
-    Dim currentTitle As String
-
-    ' Initialize variables
-    titleCount = -1 ' Start from -1 so that the first title will be at index 0
-    currentPos = 1
-
-    ' Loop through the string to find titles
-    Do
-        ' Find the start of the title
-        startPos = InStr(currentPos, jsonString, """title"":""")
-        If startPos = 0 Then Exit Do
-
-        ' Adjust position to start of title text
-        startPos = startPos + Len("""title"":""")
-
-        ' Find the end of the title
-        endPos = InStr(startPos, jsonString, """")
-        If endPos = 0 Then Exit Do
-
-        ' Extract the title
-        currentTitle = Mid(jsonString, startPos, endPos - startPos)
-
-        ' Increment titleCount for 0-based array
-        titleCount = titleCount + 1
-
-        ' Resize the array to accommodate the new title
-        ' Note: ReDim Preserve can only resize the last dimension of a multi-dimensional array
-        ReDim Preserve Titles(titleCount)
-        
-        ' Assign the currentTitle to the correct index in the array
-        Titles(titleCount) = RemoveHtmlTags(currentTitle)
-
-        ' Update the current position for the next search
-        currentPos = endPos + 1
-    Loop
-
-    ' Return the array of titles
-    ExtractTitlesFromJSON = Titles
+    SplitPlainCitations = parts
 End Function
 
 Private Sub AssertArrayLengthsEqual(array1 As Variant, array2 As Variant)
@@ -386,16 +368,6 @@ Public Sub ZoteroLinkCitation()
     ' Disable screen updating for performance
     Application.ScreenUpdating = False
 
-    ' Variables for processing
-    Dim citation As String
-    Dim title As String
-    Dim titleAnchor As String
-    Dim style As String
-    Dim fieldCode As String
-    Dim numOrYear As String
-    Dim pos&, n1&, n2&
-    Dim Response As Integer
-    
     ' Show field codes to manipulate Zotero fields
     ActiveWindow.View.ShowFieldCodes = True
     ' Prepare to find Zotero bibliography field,
@@ -437,19 +409,20 @@ Public Sub ZoteroLinkCitation()
                     Exit For
                 End If
 
-                Dim Citations() As String
-                Dim Titles() As String
-                Citations = ExtractCitations(aField.Result.Text)
-                Titles = ExtractTitlesFromJSON(aField.Code)
-                AssertArrayLengthsEqual Citations, Titles
+                Dim i, cit As Citation, cits() As Citation
+                Call ExtractAuthorYearCitations(aField, cits)
 
-                Dim i
-                For i = 0 To UBound(Citations)
-                    citation = Citations(i)
-                    title = Titles(i)
+                For i = 0 To UBound(cits)
+                    cit = cits(i)
+
+                    Dim citation As String
+                    Dim title As String
+                    citation = cit.PlainCitation
+                    title = cit.Title
 
                     ' Create a sanitized anchor name from the title
-                    titleAnchor = CleanTitleAnchor(title)
+                    Dim titleAnchor As String
+                    titleAnchor = ConvertToBookmarkName(title)
 
                     Dim rngBibliography As Range
 

@@ -1,6 +1,6 @@
 # ZoteroLinkCitation
 
-An MS Word macro that links author-date or number style citations to their bibliography entry. This project was inspired by discussions of [Word: Possibility to link references and bibliography in a document?](https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document)
+An MS Word macro that links author-date or numeric style citations to their bibliography entry. This project was inspired by discussions of [Word: Possibility to link references and bibliography in a document?](https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document)
 
 ## Supported Citation Styles
 

@@ -6,8 +6,9 @@ Attribute VB_Name = "ZoteroLinkCitation"
 Option Explicit
 
 Type Citation
-    Title As String
-    PlainCitation As String
+    BibPattern As String
+    Start As Long
+    End As Long
 End Type
 
 '-------------------------------------------------------------------
@@ -68,7 +69,7 @@ End Function
 Private Function RExtract(s$, Pattern, Optional bGroup1Bias As Boolean, Optional bGlobal As Boolean = True)
   Dim c&, m, n
   Dim v()
-  With CreateObject("vbscript.regexp")
+  With CreateObject("VBScript.RegExp")
     .Global = bGlobal
     .MultiLine = False
     .IgnoreCase = True
@@ -125,10 +126,6 @@ End Function
 '-------------------------------------------------------------------
 ' ZoteroLinkCitation Utilities
 '-------------------------------------------------------------------
-
-Private Function isSupportedStyle(style As String) As Boolean
-    isSupportedStyle = style = "molecular-plant"
-End Function
 
 Private Sub QuickSort(arr As Variant, inLow As Long, inHigh As Long)
     Dim pivot As String
@@ -288,40 +285,6 @@ Private Function ConvertToBookmarkName(ByVal str As String) As String
     ConvertToBookmarkName = result
 End Function
 
-Private Sub ExtractAuthorYearCitations(field, ByRef citations() As Citation)
-    Dim jsonCSL As Object
-    Set jsonCSL = ParseCSLCitationJson(field.code)
-
-    Dim plainCits() As String
-    plainCits = SplitPlainCitations(jsonCSL("CSL.properties.plainCitation"))
-
-    Dim i As Integer
-    ReDim citations(0 To UBound(plainCits))
-
-    For i = 0 To UBound(plainCits)
-        citations(i).PlainCitation = plainCits(i)
-        citations(i).Title = RemoveHtmlTags(jsonCSL("CSL.citationItems(" & i & ").itemData.title"))
-    Next i
-End Sub
-
-Private Function SplitPlainCitations(ByVal inputString As String, Optional sep As String = ";") As String()
-    Dim parts() As String
-    Dim i As Integer
-
-    ' Remove brackets
-    inputString = Mid(inputString, 2, Len(inputString) - 2)
-
-    ' Split the string
-    parts = Split(inputString, sep)
-
-    ' Trim spaces from each part
-    For i = LBound(parts) To UBound(parts)
-        parts(i) = Trim(parts(i))
-    Next i
-
-    SplitPlainCitations = parts
-End Function
-
 Private Sub AssertArrayLengthsEqual(array1 As Variant, array2 As Variant)
     If Not UBound(array1) - LBound(array1) = UBound(array2) - LBound(array2) Then
         MsgBox "Assertion Failed: The lengths of the two arrays are not equal.", vbCritical, "Assertion Failed"
@@ -334,6 +297,148 @@ Private Function ParseCSLCitationJson(ByVal code As String) As Object
     Set jsonObj = ParseJSON(Trim(Replace(code, "ADDIN ZOTERO_ITEM CSL_CITATION", "")), "CSL")
     Set ParseCSLCitationJson = jsonObj
 End Function
+
+'-------------------------------------------------------------------
+' Citation Style Handler
+'-------------------------------------------------------------------
+
+' Such as (Dweba et al., 2017; Hu et al., 2022; Moonjely et al., 2023)
+Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, Optional onlyYear As Boolean = False)
+    Dim targetRange As Range, charRange As Range
+    Set targetRange = field.Result
+    Set charRange = targetRange.Duplicate
+    charRange.Collapse wdCollapseStart
+
+    ReDim citations(0)
+    Dim rangeIndex As Long
+    rangeIndex = -1
+
+    Dim inCitation As Boolean
+    inCitation = False
+
+    Dim json As Object
+    Set json = ParseCSLCitationJson(field.Code)
+
+    Dim startChar As Long, endChar As Long
+
+    Dim i As Long
+    For i = 1 To targetRange.Characters.Count
+        charRange.Start = targetRange.Start + i - 1
+        charRange.End = targetRange.Start + i
+
+        ' Check for the start of a citation or year based on the onlyYear flag
+        If charRange.Text = "(" And Not onlyYear Then
+            inCitation = True
+            startChar = charRange.Start + 1
+        ElseIf charRange.Text Like "[0-9]" And onlyYear And Not inCitation Then
+            inCitation = True
+            startChar = charRange.Start
+        ElseIf charRange.Text = ";" Or charRange.Text = ")" Then
+            If inCitation Then
+                endChar = charRange.Start
+
+                rangeIndex = rangeIndex + 1
+                If rangeIndex > UBound(citations) Then
+                    ReDim Preserve citations(0 To rangeIndex)
+                End If
+
+                citations(rangeIndex).Start = startChar
+                citations(rangeIndex).End = endChar
+                citations(rangeIndex).BibPattern = RemoveHtmlTags( _
+                    json("CSL.citationItems(" & rangeIndex & ").itemData.title"))
+
+                ' Skip space after delimiter
+                If charRange.Text = ";" Then
+                    i = i + 1
+                    startChar = endChar + 2
+                End If
+
+                If onlyYear Then
+                    inCitation = False
+                End If
+
+            End If
+        End If
+    Next i
+
+    ' Resize the array to fit the number of found ranges
+    ReDim Preserve citations(0 To rangeIndex)
+End Sub
+
+' Such as [1], [2], [3] etc.
+Private Sub ExtractNumberInBrackets(field As Field, ByRef citations() As Citation, Optional bracket As String = "[]")
+    Dim targetRange As Range, charRange As Range
+    Set targetRange = field.Result
+    Set charRange = targetRange.Duplicate
+    charRange.Collapse wdCollapseStart
+
+    ReDim citations(0)
+    Dim rangeIndex As Long
+    rangeIndex = -1
+
+    Dim startBracket As String, endBracket As String
+    startBracket = Left(bracket, 1)
+    endBracket = Right(bracket, 1)
+
+    Dim inBrackets As Boolean
+    inBrackets = False
+
+    Dim json As Object
+    Set json = ParseCSLCitationJson(field.code)
+
+    Dim startChar As Long, endChar As Long
+
+    Dim i As Long
+    For i = 1 To targetRange.Characters.Count
+        charRange.Start = targetRange.Start + i - 1
+        charRange.End = targetRange.Start + i
+
+        If charRange.Text = startBracket Then
+            inBrackets = True
+            startChar = charRange.Start + 1 ' Start after the bracket
+        ElseIf charRange.Text = endBracket And inBrackets Then
+            If startChar < endChar Then
+                rangeIndex = rangeIndex + 1
+                If rangeIndex > UBound(citations) Then
+                    ReDim Preserve citations(0 To rangeIndex)
+                End If
+                With citations(rangeIndex)
+                    .Start = startChar
+                    .End = endChar
+                    .BibPattern = RemoveHtmlTags( _
+                        json("CSL.citationItems(" & rangeIndex & ").itemData.title"))
+                End With
+            End If
+            inBrackets = False
+        ElseIf inBrackets And IsNumeric(charRange.Text) Then
+            endChar = charRange.End ' Update end if still in brackets and character is numeric
+        End If
+    Next i
+
+    ' Resize the array to fit the number of found ranges
+    ReDim Preserve citations(0 To rangeIndex)
+
+End Sub
+
+Private Function isSupportedStyle(ByVal style As String) As Boolean
+    Dim predefinedList As String
+    predefinedList = "|molecular-plant|ieee|"
+    style = "|" & style & "|"
+    isSupportedStyle = InStr(1, predefinedList, style, vbTextCompare) > 0
+End Function
+
+Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, style As String)
+    Select Case style
+        Case "molecular-plant"
+            Call ExtractAuthorYearCitations(field, citations)
+
+        Case "ieee"
+            Call ExtractNumberInBrackets(field, citations, "[]")
+
+        Case Else
+            Err.Raise vbObjectError + 1, "ExtractCitations", "Citation style not recognized"
+    End Select
+End Sub
 
 '-------------------------------------------------------------------
 ' ZoteroLinkCitation Macro
@@ -401,7 +506,7 @@ Public Sub ZoteroLinkCitation()
     ActiveWindow.View.ShowFieldCodes = False
 
     ' Iterate through all fields in the document
-    Dim aField, iCount As Integer
+    Dim aField As Field, iCount As Integer
     For Each aField In ActiveDocument.Fields
         ' Check if the field is a Zotero citation
         If aField.Type = wdFieldAddin Then
@@ -415,15 +520,23 @@ Public Sub ZoteroLinkCitation()
                 End If
 
                 Dim i, cit As Citation, cits() As Citation
-                Call ExtractAuthorYearCitations(aField, cits)
+                Call ExtractCitations(aField, cits, styleId)
 
+                Dim tempBookmarkName As String
+                For i = 0 To UBound(cits)
+                    cit = cits(i)
+                    Dim rng As Range
+                    Set rng = aField.Result.Document.Range(Start:=cit.Start, End:=cit.End)
+                    tempBookmarkName = "ZoteroLinkCitationTempBookmark" & i
+                    ActiveDocument.Bookmarks.Add Name:=tempBookmarkName, Range:=rng
+                Next i
+
+                ' Link citations to bibliography
                 For i = 0 To UBound(cits)
                     cit = cits(i)
 
-                    Dim citation As String
                     Dim title As String
-                    citation = cit.PlainCitation
-                    title = cit.Title
+                    title = cit.BibPattern
 
                     ' Create a sanitized anchor name from the title
                     Dim titleAnchor As String
@@ -465,38 +578,24 @@ Public Sub ZoteroLinkCitation()
                         End If
                     End If
 
-                    Dim rng As Range
-                    Set rng = aField.Result
+                    ' Create hyperlink according to temporary bookmark
+                    Dim hp As Hyperlink
+                    Set hp = ActiveDocument.Hyperlinks.Add( _
+                        Anchor:=ActiveDocument.Bookmarks("ZoteroLinkCitationTempBookmark" & i).Range, _
+                        SubAddress:=titleAnchor)
 
-                    With rng.Find
-                        .Text = citation ' Assuming 'citation' is the variable holding the text to find
-                        .Forward = True
-                        .Wrap = wdFindStop ' Ensures the search does not wrap around the document
-                        .Format = False
-                        .MatchCase = False
-                        .MatchWholeWord = False
-                        .MatchWildcards = False
-                        .MatchSoundsLike = False
-                        .MatchAllWordForms = False
-                        Dim found As Boolean
-                        found = .Execute
-                    End With
-
-                    If Not found Then
-                        MsgBox "Not found the citation " & citation, vbOKOnly + vbCritical, "Error"
-                        GoTo ExitTheMacro
-                    Else
-                        Dim hp As Hyperlink
-                        Set hp = ActiveDocument.Hyperlinks.Add(Anchor:=rng, SubAddress:=titleAnchor)
-                        If userTextStyle <> "" Then
-                            hp.Range.style = ActiveDocument.Styles(userTextStyle)
-                        End If
+                    ' Apply text style to the hyperlink
+                    If userTextStyle <> "" Then
+                        hp.Range.style = ActiveDocument.Styles(userTextStyle)
                     End If
 
                     iCount = iCount + 1
 
                 SkipToNextCitation:
+                    ActiveDocument.Bookmarks("ZoteroLinkCitationTempBookmark" & i).Delete
+
                 Next i
+
             End If
         End If
     Next aField

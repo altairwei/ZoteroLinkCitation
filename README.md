@@ -4,7 +4,9 @@ An MS Word macro that links author-date or numeric style citations to their bibl
 
 ## Supported Citation Styles
 
-* http://www.zotero.org/styles/molecular-plant
+* [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa)
+* [IEEE](http://www.zotero.org/styles/ieee)
+* [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
 
 Other styles are still being worked on.
 
@@ -26,9 +28,8 @@ This guide is aimed at beginners and provides detailed instructions on importing
 
 ### Step 2: Importing the VB Script
 
-1. Within the VBA Editor, locate `Normal` in the Project window on the left. Right-click on `Modules` under `Normal`. If `Modules` is not visible, right-click on `Normal` and choose `Insert` > `Module`.
-2. With the new module selected, navigate to `File` > `Import File...` in the VBA Editor's menu.
-3. Locate and select your `ZoteroLinkCitation.bas` file, then click `Open` to import the script.
+1. Within the VBA Editor, locate `Normal` in the Project window on the left. Right-click on `Normal` choose `Import File...`.
+2. Locate and select your `ZoteroLinkCitation.bas` file, then click `Open` to import the script.
 
 ### Step 3: Saving Your Macro-Enabled Document
 

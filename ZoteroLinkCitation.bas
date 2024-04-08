@@ -303,7 +303,7 @@ End Function
 '-------------------------------------------------------------------
 
 ' Such as (Dweba et al., 2017; Hu et al., 2022; Moonjely et al., 2023)
-Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, Optional onlyYear As Boolean = False)
+Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, Optional onlyYear As Boolean = False)
     Dim targetRange As Range, charRange As Range
     Set targetRange = field.Result
     Set charRange = targetRange.Duplicate
@@ -313,8 +313,9 @@ Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, Op
     Dim rangeIndex As Long
     rangeIndex = -1
 
-    Dim inCitation As Boolean
+    Dim inCitation As Boolean, nComma As Integer
     inCitation = False
+    nComma = 0
 
     Dim json As Object
     Set json = ParseCSLCitationJson(field.Code)
@@ -326,14 +327,28 @@ Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, Op
         charRange.Start = targetRange.Start + i - 1
         charRange.End = targetRange.Start + i
 
-        ' Check for the start of a citation or year based on the onlyYear flag
+        ' Start of full author-year citation
         If charRange.Text = "(" And Not onlyYear Then
             inCitation = True
             startChar = charRange.Start + 1
+
+        ' Start of year citation
         ElseIf charRange.Text Like "[0-9]" And onlyYear And Not inCitation Then
             inCitation = True
             startChar = charRange.Start
+
+        ' Check multiple citations of same author
+        ElseIf charRange.Text = "," Then
+            nComma = nComma + 1
+            If nComma > 1 Then
+                GoTo CreateCitationObject
+            End If
+
+        ' End of citation
         ElseIf charRange.Text = ";" Or charRange.Text = ")" Then
+            nComma = 0
+
+        CreateCitationObject:
             If inCitation Then
                 endChar = charRange.Start
 
@@ -347,17 +362,16 @@ Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, Op
                 citations(rangeIndex).BibPattern = RemoveHtmlTags( _
                     json("CSL.citationItems(" & rangeIndex & ").itemData.title"))
 
-                ' Skip space after delimiter
-                If charRange.Text = ";" Then
-                    i = i + 1
-                    startChar = endChar + 2
-                End If
-
-                If onlyYear Then
-                    inCitation = False
-                End If
-
+                inCitation = False
             End If
+
+            ' Skip space after delimiter
+            If (charRange.Text = ";" Or charRange.Text = ",") And Not onlyYear Then
+                i = i + 1
+                startChar = endChar + 2
+                inCitation = True
+            End If
+
         End If
     Next i
 
@@ -422,7 +436,7 @@ End Sub
 
 Private Function isSupportedStyle(ByVal style As String) As Boolean
     Dim predefinedList As String
-    predefinedList = "|molecular-plant|ieee|"
+    predefinedList = "|molecular-plant|ieee|apa|"
     style = "|" & style & "|"
     isSupportedStyle = InStr(1, predefinedList, style, vbTextCompare) > 0
 End Function
@@ -431,6 +445,9 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
     Select Case style
         Case "molecular-plant"
             Call ExtractAuthorYearCitations(field, citations)
+
+        Case "apa"
+            Call ExtractAuthorYearCitations(field, citations, True)
 
         Case "ieee"
             Call ExtractNumberInBrackets(field, citations, "[]")
@@ -485,7 +502,7 @@ Public Sub ZoteroLinkCitationAll()
     Application.ScreenUpdating = True
 End Sub
 
-Private Sub ZoteroLinkCitation(targetFields As Fields, Optional debugging As Boolean = False)
+Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = False)
     ' Do not support Bookmark-type citations
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()

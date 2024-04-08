@@ -444,7 +444,48 @@ End Sub
 ' ZoteroLinkCitation Macro
 '-------------------------------------------------------------------
 
-Public Sub ZoteroLinkCitation()
+Public Sub ZoteroLinkCitationWithinSelection()
+    If Selection.Fields.Count > 0 Then
+        Dim nStart&, nEnd&
+        nStart = Selection.Start
+        nEnd = Selection.End
+        Application.ScreenUpdating = False
+
+        Dim targetFields As New Collection
+        Dim fld As Field
+
+        For Each fld In Selection.Fields
+            targetFields.Add fld
+        Next fld
+
+        Call ZoteroLinkCitation(targetFields, False)
+
+        ActiveDocument.Range(nStart, nEnd).Select
+        Application.ScreenUpdating = True
+    End If
+End Sub
+
+Public Sub ZoteroLinkCitationAll()
+    ' Declare variables for start and end positions
+    Dim nStart&, nEnd&
+    ' Capture current selection positions
+    nStart = Selection.Start
+    nEnd = Selection.End
+    ' Disable screen updating for performance
+    Application.ScreenUpdating = False
+
+    Dim debugging As Boolean
+    debugging = (MsgBox("Do you want run in debug mode?", vbYesNo + vbQuestion, "Debug?") = vbYes)
+
+    Call ZoteroLinkCitation(ActiveDocument.Fields, debugging)
+
+    ' Restore the original selection
+    ActiveDocument.Range(nStart, nEnd).Select
+    ' Re-enable screen updating
+    Application.ScreenUpdating = True
+End Sub
+
+Private Sub ZoteroLinkCitation(targetFields As Fields, Optional debugging As Boolean = False)
     ' Do not support Bookmark-type citations
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()
@@ -464,17 +505,6 @@ Public Sub ZoteroLinkCitation()
     userTextStyle = InputBox(title := "Set a style for linked citations?", _
                              prompt := "If you want to set a certain style for linked citations," & _
                                         " enter the name of that style below.")
-
-    Dim debugging As Boolean
-    debugging = (MsgBox("Do you want run in debug mode?", vbYesNo + vbQuestion, "Debug?") = vbYes)
-
-    ' Declare variables for start and end positions
-    Dim nStart&, nEnd&
-    ' Capture current selection positions
-    nStart = Selection.Start
-    nEnd = Selection.End
-    ' Disable screen updating for performance
-    Application.ScreenUpdating = False
 
     ' Show field codes to manipulate Zotero fields
     ActiveWindow.View.ShowFieldCodes = True
@@ -507,7 +537,7 @@ Public Sub ZoteroLinkCitation()
 
     ' Iterate through all fields in the document
     Dim aField As Field, iCount As Integer
-    For Each aField In ActiveDocument.Fields
+    For Each aField In targetFields
         ' Check if the field is a Zotero citation
         If aField.Type = wdFieldAddin Then
             If InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
@@ -522,6 +552,7 @@ Public Sub ZoteroLinkCitation()
                 Dim i, cit As Citation, cits() As Citation
                 Call ExtractCitations(aField, cits, styleId)
 
+                ' Locate all citations in the field
                 Dim tempBookmarkName As String
                 For i = 0 To UBound(cits)
                     cit = cits(i)
@@ -604,8 +635,4 @@ ExitTheMacro:
 
     MsgBox "Linked " & iCount & " Zotero citations.", vbInformation, "Finish"
 
-    ' Restore the original selection
-    ActiveDocument.Range(nStart, nEnd).Select
-    ' Re-enable screen updating
-    Application.ScreenUpdating = True
 End Sub

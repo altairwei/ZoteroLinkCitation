@@ -303,7 +303,8 @@ End Function
 '-------------------------------------------------------------------
 
 ' Such as (Dweba et al., 2017; Hu et al., 2022; Moonjely et al., 2023)
-Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, Optional onlyYear As Boolean = False)
+Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, _
+        Optional onlyYear As Boolean = False, Optional multiRefCommaSep As Boolean = True)
     Dim targetRange As Range, charRange As Range
     Set targetRange = field.Result
     Set charRange = targetRange.Duplicate
@@ -338,7 +339,7 @@ Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Cita
             startChar = charRange.Start
 
         ' Check multiple citations of same author
-        ElseIf charRange.Text = "," Then
+        ElseIf multiRefCommaSep And charRange.Text = "," Then
             nComma = nComma + 1
             If nComma > 1 Then
                 GoTo CreateCitationObject
@@ -346,7 +347,8 @@ Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Cita
 
         ' End of citation
         ElseIf charRange.Text = ";" Or charRange.Text = ")" Then
-            nComma = 0
+        
+            If multiRefCommaSep Then nComma = 0
 
         CreateCitationObject:
             If inCitation Then
@@ -545,7 +547,7 @@ Private Function isSupportedStyle(ByVal style As String) As Boolean
     predefinedList = "|" & _
         "molecular-plant|ieee|apa|vancouver|american-chemical-society|" & _
         "american-medical-association|nature|american-political-science-association|" & _
-        "american-sociological-association|" & _
+        "american-sociological-association|chicago-author-date|" & _
         "china-national-standard-gb-t-7714-2015-numeric|" & _
         "china-national-standard-gb-t-7714-2015-author-date|"
     style = "|" & style & "|"
@@ -554,8 +556,8 @@ End Function
 
 Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, style As String)
     Select Case style
-        Case "molecular-plant"
-            Call ExtractAuthorYearCitations(field, citations)
+        Case "molecular-plant", "chicago-author-date"
+            Call ExtractAuthorYearCitations(field, citations, onlyYear:=False, multiRefCommaSep:=False)
 
         Case "apa", "china-national-standard-gb-t-7714-2015-author-date", _
              "american-political-science-association", "american-sociological-association"

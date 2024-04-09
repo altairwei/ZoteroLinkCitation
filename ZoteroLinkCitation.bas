@@ -555,7 +555,7 @@ Private Function isSupportedStyle(ByVal style As String) As Boolean
         "american-sociological-association|chicago-author-date|" & _
         "china-national-standard-gb-t-7714-2015-numeric|" & _
         "china-national-standard-gb-t-7714-2015-author-date|" & _
-        "harvard-cite-them-right|"
+        "harvard-cite-them-right|elsevier-harvard|"
     style = "|" & style & "|"
     isSupportedStyle = InStr(1, predefinedList, style, vbTextCompare) > 0
 End Function
@@ -569,6 +569,9 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
              "american-political-science-association", "american-sociological-association", _
              "harvard-cite-them-right"
             Call ExtractAuthorYearCitations(field, citations, onlyYear:=True, multiRefCommaSep:=True)
+
+        Case "elsevier-harvard"
+            Call ExtractAuthorYearCitations(field, citations, onlyYear:=False, multiRefCommaSep:=True)
 
         Case "ieee"
             Call ExtractNumberInBrackets(field, citations, "[]")

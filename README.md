@@ -1,36 +1,15 @@
 # ZoteroLinkCitation
 
-An MS Word macro that links author-date or numeric style citations to their bibliography entry. This project was inspired by discussions of [Word: Possibility to link references and bibliography in a document?](https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document)
+An MS Word macro that links [Zotero](https://www.zotero.org/) author-date or numeric style citations to their bibliography entry. This project was inspired by discussions of [Word: Possibility to link references and bibliography in a document?](https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document)
 
-## Supported Citation Styles
+## Features
 
-### Author-Year styles
+* The script automatically detects whether the citation style used in the document has been tested and supported. See [Supported Citation Styles](#supported-citation-styles).
+* The Zotero fields are preserved after linking to the bibliography.
+* Allows setting a unified Word text style for newly established links, enabling changes to the link's color, size, font, etc.
+* Correctly handles multiple references in the Author-Date style where the first author is the same.
 
-* [American Political Science Association](http://www.zotero.org/styles/american-political-science-association)
-* [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa)
-* [American Sociological Association 6th/7th edition](http://www.zotero.org/styles/american-sociological-association)
-* [Chicago Manual of Style 17th edition (author-date)](http://www.zotero.org/styles/chicago-author-date)
-* [China National Standard GB/T 7714-2015 (author-date)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date)
-* [Cite Them Right 12th edition - Harvard](http://www.zotero.org/styles/harvard-cite-them-right)
-* [Elsevier - Harvard (with titles)](http://www.zotero.org/styles/elsevier-harvard)
-* [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
-
-### Numeric styles
-
-* [American Chemical Society](http://www.zotero.org/styles/american-chemical-society)
-* [American Medical Association 11th edition](http://www.zotero.org/styles/american-medical-association)
-* [China National Standard GB/T 7714-2015 (numeric)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-numeric)
-* [IEEE](http://www.zotero.org/styles/ieee)
-* [Nature](http://www.zotero.org/styles/nature)
-* [Vancouver](http://www.zotero.org/styles/vancouver)
-
-### Author-only styles
-
-* [Modern Language Association 9th edition](http://www.zotero.org/styles/modern-language-association)
-
-Other styles are still being worked on.
-
-## How to Use ZoteroLinkCitation
+## How to Use
 
 **Important Warning:** Before running the `ZoteroLinkCitationAll` macro, **please ensure you have backed up your document**. The operations performed by this script are bulk actions that are irreversible. A backup ensures that you can restore your original document in case anything does not go as expected.
 
@@ -94,6 +73,40 @@ Press `Alt` + `F8`, find and select `ZoteroLinkCitationAll` from the list, then 
 - **Macro Security**: Only run macros from trusted sources. Macros can contain harmful code.
 - **Testing**: Consider running the macro on a non-critical document first to familiarize yourself with its effects.
 
-### Troubleshooting
+## Known Issues
 
-- **Macro Not Running**: Verify the macro security settings and ensure the document is saved with a `.docm` extension.
+### Citations are linked to wrong references in a field containing multiple citations
+
+This type of mismatch only occurs among different citations within the same field in Word documents and is prone to happen when your document switches between the Author-Date and Numeric styles.
+
+The solution is to locate all fields with mismatched citations and use the Zotero Word plugin to edit each field. Repeatedly check/uncheck the `Keep Sources Sorted` option in the dropdown menu of the Zotero dialog to update the order of citation objects, thus matching the actual order of citation text in the Word document. After updating all problematic fields, rerun the `ZoteroLinkCitationAll` macro.
+
+Why does this situation occur? It's because `ZoteroLinkCitation` relies on the order of citations within a field, fetching the citation titles from the CSL JSON data contained in that field, and then establishing the link between citations and the bibliography.
+
+This problem is nearly impossible to resolve with VBA scripts, and currently, there is no method found to force Zotero to update the order of citation objects in the CSL JSON data across all fields.
+
+## Supported Citation Styles
+
+### Author-Year styles
+
+* [American Political Science Association](http://www.zotero.org/styles/american-political-science-association)
+* [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa)
+* [American Sociological Association 6th/7th edition](http://www.zotero.org/styles/american-sociological-association)
+* [Chicago Manual of Style 17th edition (author-date)](http://www.zotero.org/styles/chicago-author-date)
+* [China National Standard GB/T 7714-2015 (author-date)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date)
+* [Cite Them Right 12th edition - Harvard](http://www.zotero.org/styles/harvard-cite-them-right)
+* [Elsevier - Harvard (with titles)](http://www.zotero.org/styles/elsevier-harvard)
+* [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
+
+### Numeric styles
+
+* [American Chemical Society](http://www.zotero.org/styles/american-chemical-society)
+* [American Medical Association 11th edition](http://www.zotero.org/styles/american-medical-association)
+* [China National Standard GB/T 7714-2015 (numeric)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-numeric)
+* [IEEE](http://www.zotero.org/styles/ieee)
+* [Nature](http://www.zotero.org/styles/nature)
+* [Vancouver](http://www.zotero.org/styles/vancouver)
+
+### Author-only styles
+
+* [Modern Language Association 9th edition](http://www.zotero.org/styles/modern-language-association)

@@ -608,7 +608,7 @@ Public Sub ZoteroLinkCitationWithinSelection()
             targetFields.Add fld
         Next fld
 
-        Call ZoteroLinkCitation(targetFields, False)
+        Call ZoteroLinkCitation(targetFields, False, False)
 
         ActiveDocument.Range(nStart, nEnd).Select
         Application.ScreenUpdating = True
@@ -635,7 +635,7 @@ Public Sub ZoteroLinkCitationAll()
     Application.ScreenUpdating = True
 End Sub
 
-Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = False)
+Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = False, Optional notify As Boolean = True)
     ' Do not support Bookmark-type citations
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()
@@ -652,9 +652,12 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
     End If
 
     Dim userTextStyle As String
-    userTextStyle = InputBox(title := "Set a style for linked citations?", _
-                             prompt := "If you want to set a certain style for linked citations," & _
-                                        " enter the name of that style below.")
+
+    If notify Then
+        userTextStyle = InputBox(title := "Set a style for linked citations?", _
+                                prompt := "If you want to set a certain style for linked citations," & _
+                                            " enter the name of that style below.")
+    EndIf
 
     ' Show field codes to manipulate Zotero fields
     ActiveWindow.View.ShowFieldCodes = True

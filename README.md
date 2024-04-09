@@ -6,23 +6,27 @@ An MS Word macro that links author-date or numeric style citations to their bibl
 
 ### Author-Year styles
 
-* [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa)
 * [American Political Science Association](http://www.zotero.org/styles/american-political-science-association)
+* [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa)
 * [American Sociological Association 6th/7th edition](http://www.zotero.org/styles/american-sociological-association)
-* [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
-* [China National Standard GB/T 7714-2015 (author-date)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date)
 * [Chicago Manual of Style 17th edition (author-date)](http://www.zotero.org/styles/chicago-author-date)
+* [China National Standard GB/T 7714-2015 (author-date)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date)
 * [Cite Them Right 12th edition - Harvard](http://www.zotero.org/styles/harvard-cite-them-right)
 * [Elsevier - Harvard (with titles)](http://www.zotero.org/styles/elsevier-harvard)
+* [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
 
 ### Numeric styles
 
-* [IEEE](http://www.zotero.org/styles/ieee)
-* [Vancouver](http://www.zotero.org/styles/vancouver)
 * [American Chemical Society](http://www.zotero.org/styles/american-chemical-society)
-* [China National Standard GB/T 7714-2015 (numeric)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-numeric)
 * [American Medical Association 11th edition](http://www.zotero.org/styles/american-medical-association)
+* [China National Standard GB/T 7714-2015 (numeric)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-numeric)
+* [IEEE](http://www.zotero.org/styles/ieee)
 * [Nature](http://www.zotero.org/styles/nature)
+* [Vancouver](http://www.zotero.org/styles/vancouver)
+
+### Author-only styles
+
+* [Modern Language Association 9th edition](http://www.zotero.org/styles/modern-language-association)
 
 Other styles are still being worked on.
 

@@ -555,14 +555,14 @@ Private Function isSupportedStyle(ByVal style As String) As Boolean
         "american-sociological-association|chicago-author-date|" & _
         "china-national-standard-gb-t-7714-2015-numeric|" & _
         "china-national-standard-gb-t-7714-2015-author-date|" & _
-        "harvard-cite-them-right|elsevier-harvard|"
+        "harvard-cite-them-right|elsevier-harvard|modern-language-association|"
     style = "|" & style & "|"
     isSupportedStyle = InStr(1, predefinedList, style, vbTextCompare) > 0
 End Function
 
 Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, style As String)
     Select Case style
-        Case "molecular-plant", "chicago-author-date"
+        Case "molecular-plant", "chicago-author-date", "modern-language-association"
             Call ExtractAuthorYearCitations(field, citations, onlyYear:=False, multiRefCommaSep:=False)
 
         Case "apa", "china-national-standard-gb-t-7714-2015-author-date", _

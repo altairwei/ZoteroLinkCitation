@@ -12,6 +12,7 @@ An MS Word macro that links author-date or numeric style citations to their bibl
 * [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
 * [China National Standard GB/T 7714-2015 (author-date)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date)
 * [Chicago Manual of Style 17th edition (author-date)](http://www.zotero.org/styles/chicago-author-date)
+* [Cite Them Right 12th edition - Harvard](http://www.zotero.org/styles/harvard-cite-them-right)
 
 ### Numeric styles
 

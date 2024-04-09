@@ -314,9 +314,10 @@ Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Cita
     Dim rangeIndex As Long
     rangeIndex = -1
 
-    Dim inCitation As Boolean, nComma As Integer
+    Dim inCitation As Boolean, nComma As Integer, beginYear As Boolean
     inCitation = False
     nComma = 0
+    beginYear = False
 
     Dim json As Object
     Set json = ParseCSLCitationJson(field.Code)
@@ -334,20 +335,24 @@ Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Cita
             startChar = charRange.Start + 1
 
         ' Start of year citation
-        ElseIf charRange.Text Like "[0-9]" And onlyYear And Not inCitation Then
-            inCitation = True
-            startChar = charRange.Start
+        ElseIf charRange.Text Like "[0-9]" Then
+            beginYear = True
+
+            If onlyYear And Not inCitation Then
+                inCitation = True
+                startChar = charRange.Start
+            EndIf
 
         ' Check multiple citations of same author
         ElseIf multiRefCommaSep And charRange.Text = "," Then
             nComma = nComma + 1
-            If nComma > 1 Then
+            If nComma > 1 And beginYear Then
                 GoTo CreateCitationObject
             End If
 
         ' End of citation
         ElseIf charRange.Text = ";" Or charRange.Text = ")" Then
-        
+            beginYear = False
             If multiRefCommaSep Then nComma = 0
 
         CreateCitationObject:
@@ -549,7 +554,8 @@ Private Function isSupportedStyle(ByVal style As String) As Boolean
         "american-medical-association|nature|american-political-science-association|" & _
         "american-sociological-association|chicago-author-date|" & _
         "china-national-standard-gb-t-7714-2015-numeric|" & _
-        "china-national-standard-gb-t-7714-2015-author-date|"
+        "china-national-standard-gb-t-7714-2015-author-date|" & _
+        "harvard-cite-them-right|"
     style = "|" & style & "|"
     isSupportedStyle = InStr(1, predefinedList, style, vbTextCompare) > 0
 End Function
@@ -560,8 +566,9 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
             Call ExtractAuthorYearCitations(field, citations, onlyYear:=False, multiRefCommaSep:=False)
 
         Case "apa", "china-national-standard-gb-t-7714-2015-author-date", _
-             "american-political-science-association", "american-sociological-association"
-            Call ExtractAuthorYearCitations(field, citations, True)
+             "american-political-science-association", "american-sociological-association", _
+             "harvard-cite-them-right"
+            Call ExtractAuthorYearCitations(field, citations, onlyYear:=True, multiRefCommaSep:=True)
 
         Case "ieee"
             Call ExtractNumberInBrackets(field, citations, "[]")

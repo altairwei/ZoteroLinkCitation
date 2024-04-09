@@ -4,9 +4,17 @@ An MS Word macro that links author-date or numeric style citations to their bibl
 
 ## Supported Citation Styles
 
+### Author-Year Styles
+
 * [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa)
-* [IEEE](http://www.zotero.org/styles/ieee)
 * [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
+* [China National Standard GB/T 7714-2015 (author-date, 中文)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date)
+
+### Numeric Styles
+
+* [IEEE](http://www.zotero.org/styles/ieee)
+* [Vancouver](http://www.zotero.org/styles/vancouver)
+* [China National Standard GB/T 7714-2015 (numeric, 中文)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-numeric)
 
 Other styles are still being worked on.
 
@@ -48,13 +56,15 @@ Adjust Word’s macro settings to allow the macro to run:
 2. Select `Disable all macros with notification` for security while enabling functionality.
 3. Click `OK` to confirm.
 
-### Step 5: Running the `ZoteroLinkCitation` Macro
+### Step 5: Running the `ZoteroLinkCitationAll` Macro
 
 1. Make the `Developer` tab visible in Word (if it’s not already):
    - Navigate to `File` > `Options` > `Customize Ribbon`.
    - Ensure `Developer` is checked on the right side, then click `OK`.
 2. Click `Macros` in the `Developer` tab.
-3. Find and select `ZoteroLinkCitation` from the list, then click `Run`.
+3. Find and select `ZoteroLinkCitationAll` from the list, then click `Run`.
+
+(Optional) Press `Alt` + `F8`, then choose `ZoteroLinkCitationAll` to run.
 
 ### Important Tips
 

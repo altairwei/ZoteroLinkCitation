@@ -434,9 +434,103 @@ Private Sub ExtractNumberInBrackets(field As Field, ByRef citations() As Citatio
 
 End Sub
 
+' Such as 47,98,100–102
+Private Sub ExtractSerialNumberCitations(field As Field, ByRef citations() As Citation, Optional border = "[]")
+    Dim targetRange As Range, charRange As Range
+    Set targetRange = field.Result
+    Set charRange = targetRange.Duplicate
+    charRange.Collapse wdCollapseStart
+
+    ReDim citations(0)
+    Dim rangeIndex As Long, citOrder As Long
+    rangeIndex = -1
+    citOrder = -1
+
+    Dim startBorder As String, endBorder As String
+    startBorder = Left(border, 1)
+    endBorder = Right(border, 1)
+
+    Dim inCitation As Boolean
+    inCitation = False
+
+    Dim lastNum As Long
+    lastNum = 0
+
+    Dim json As Object
+    Set json = ParseCSLCitationJson(field.Code)
+
+    Dim startChar As Long, endChar As Long
+
+    Dim currentChar As String
+    Dim citationText As String
+
+    Dim i As Long
+    For i = 1 To targetRange.Characters.Count
+        charRange.Start = targetRange.Start + i - 1
+        charRange.End = targetRange.Start + i
+        currentChar = charRange.Text
+
+        If currentChar Like "[0-9]" And Not inCitation Then
+            inCitation = True
+            startChar = charRange.Start
+            citationText = currentChar
+
+        ElseIf currentChar = "," Or currentChar = endBorder Or currentChar = ChrW(8211) Then
+
+            If currentChar = ChrW(8211) Then
+                lastNum = CLng(citationText)
+            End If
+
+            If inCitation Then
+                endChar = charRange.Start
+
+                rangeIndex = rangeIndex + 1
+                If rangeIndex > UBound(citations) Then
+                    ReDim Preserve citations(0 To rangeIndex)
+                End If
+
+                If (currentChar = "," Or currentChar = endBorder) And lastNum > 0 Then
+                    citOrder = citOrder + CLng(citationText) - lastNum
+                Else
+                    citOrder = citOrder + 1
+                End If
+
+                citations(rangeIndex).Start = startChar
+                citations(rangeIndex).End = endChar
+                citations(rangeIndex).BibPattern = RemoveHtmlTags( _
+                    json("CSL.citationItems(" & citOrder & ").itemData.title"))
+
+                If Len(citations(rangeIndex).BibPattern) = 0 Then
+                    Err.Raise vbObjectError + 1, "ExtractCitations", "Can not find citation CSL data"
+                EndIf
+
+                inCitation = False
+            End If
+
+            If currentChar = "," Then
+                lastNum = 0
+            End If
+
+        ElseIf inCitation Then
+            citationText = citationText & currentChar
+
+        End If
+
+    Next i
+
+    ReDim Preserve citations(0 To rangeIndex)
+End Sub
+
+'-------------------------------------------------------------------
+' Supported Citation Styles
+'-------------------------------------------------------------------
+
 Private Function isSupportedStyle(ByVal style As String) As Boolean
     Dim predefinedList As String
-    predefinedList = "|molecular-plant|ieee|apa|"
+    predefinedList = "|" & _
+        "molecular-plant|ieee|apa|vancouver|" & _
+        "china-national-standard-gb-t-7714-2015-numeric|" & _
+        "china-national-standard-gb-t-7714-2015-author-date|"
     style = "|" & style & "|"
     isSupportedStyle = InStr(1, predefinedList, style, vbTextCompare) > 0
 End Function
@@ -446,11 +540,17 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
         Case "molecular-plant"
             Call ExtractAuthorYearCitations(field, citations)
 
-        Case "apa"
+        Case "apa", "china-national-standard-gb-t-7714-2015-author-date"
             Call ExtractAuthorYearCitations(field, citations, True)
 
         Case "ieee"
             Call ExtractNumberInBrackets(field, citations, "[]")
+
+        Case "vancouver"
+            Call ExtractSerialNumberCitations(field, citations, "()")
+
+        Case "china-national-standard-gb-t-7714-2015-numeric"
+            Call ExtractSerialNumberCitations(field, citations, "[]")
 
         Case Else
             Err.Raise vbObjectError + 1, "ExtractCitations", "Citation style not recognized"
@@ -630,7 +730,7 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
                     Dim hp As Hyperlink
                     Set hp = ActiveDocument.Hyperlinks.Add( _
                         Anchor:=ActiveDocument.Bookmarks("ZoteroLinkCitationTempBookmark" & i).Range, _
-                        SubAddress:=titleAnchor)
+                        SubAddress:=titleAnchor, ScreenTip:="")
 
                     ' Apply text style to the hyperlink
                     If userTextStyle <> "" Then

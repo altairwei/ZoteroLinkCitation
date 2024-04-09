@@ -434,8 +434,8 @@ Private Sub ExtractNumberInBrackets(field As Field, ByRef citations() As Citatio
 
 End Sub
 
-' Such as 47,98,100–102
-Private Sub ExtractSerialNumberCitations(field As Field, ByRef citations() As Citation, Optional border = "[]")
+' Such as [47,98,100–102]
+Private Sub ExtractSerialNumberCitations(field As Field, ByRef citations() As Citation, Optional border = "")
     Dim targetRange As Range, charRange As Range
     Set targetRange = field.Result
     Set charRange = targetRange.Duplicate
@@ -464,17 +464,32 @@ Private Sub ExtractSerialNumberCitations(field As Field, ByRef citations() As Ci
     Dim currentChar As String
     Dim citationText As String
 
-    Dim i As Long
-    For i = 1 To targetRange.Characters.Count
+    Dim i As Long, RL As Long
+    RL = targetRange.Characters.Count
+
+    ' Add a pseudo-border to the citation text without borders
+    If Len(endBorder) = 0 Then
+        RL = RL + 1
+        endBorder = "]"
+    EndIf
+
+    For i = 1 To RL
         charRange.Start = targetRange.Start + i - 1
         charRange.End = targetRange.Start + i
-        currentChar = charRange.Text
+
+        If i <= targetRange.Characters.Count Then
+            currentChar = charRange.Text
+        Else
+            ' Point to the psuedo-border
+            currentChar = endBorder
+        EndIf
 
         If currentChar Like "[0-9]" And Not inCitation Then
             inCitation = True
             startChar = charRange.Start
             citationText = currentChar
 
+        ' ChrW(8211) means the character "en dash"
         ElseIf currentChar = "," Or currentChar = endBorder Or currentChar = ChrW(8211) Then
 
             If currentChar = ChrW(8211) Then
@@ -507,7 +522,7 @@ Private Sub ExtractSerialNumberCitations(field As Field, ByRef citations() As Ci
                 inCitation = False
             End If
 
-            If currentChar = "," Then
+            If currentChar = "," Or currentChar = endBorder Then
                 lastNum = 0
             End If
 
@@ -528,7 +543,9 @@ End Sub
 Private Function isSupportedStyle(ByVal style As String) As Boolean
     Dim predefinedList As String
     predefinedList = "|" & _
-        "molecular-plant|ieee|apa|vancouver|" & _
+        "molecular-plant|ieee|apa|vancouver|american-chemical-society|" & _
+        "american-medical-association|nature|american-political-science-association|" & _
+        "american-sociological-association|" & _
         "china-national-standard-gb-t-7714-2015-numeric|" & _
         "china-national-standard-gb-t-7714-2015-author-date|"
     style = "|" & style & "|"
@@ -540,7 +557,8 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
         Case "molecular-plant"
             Call ExtractAuthorYearCitations(field, citations)
 
-        Case "apa", "china-national-standard-gb-t-7714-2015-author-date"
+        Case "apa", "china-national-standard-gb-t-7714-2015-author-date", _
+             "american-political-science-association", "american-sociological-association"
             Call ExtractAuthorYearCitations(field, citations, True)
 
         Case "ieee"
@@ -551,6 +569,9 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
 
         Case "china-national-standard-gb-t-7714-2015-numeric"
             Call ExtractSerialNumberCitations(field, citations, "[]")
+
+        Case "american-chemical-society", "american-medical-association", "nature"
+            Call ExtractSerialNumberCitations(field, citations, "")
 
         Case Else
             Err.Raise vbObjectError + 1, "ExtractCitations", "Citation style not recognized"

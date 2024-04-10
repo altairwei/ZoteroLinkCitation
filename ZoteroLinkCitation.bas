@@ -596,9 +596,9 @@ End Sub
 
 Public Sub ZoteroLinkCitationWithinSelection()
     If Selection.Fields.Count > 0 Then
-        Dim nStart&, nEnd&
-        nStart = Selection.Start
-        nEnd = Selection.End
+        Dim originalRng As Range
+        Set originalRng = Selection.Range
+
         Application.ScreenUpdating = False
 
         Dim targetFields As New Collection
@@ -610,7 +610,10 @@ Public Sub ZoteroLinkCitationWithinSelection()
 
         Call ZoteroLinkCitation(targetFields, False, False)
 
-        ActiveDocument.Range(nStart, nEnd).Select
+        ' Restore the original selection
+        ActiveWindow.ScrollIntoView originalRng, True
+        originalRng.Select
+
         Application.ScreenUpdating = True
     End If
 End Sub
@@ -623,7 +626,7 @@ Public Sub ZoteroLinkCitationAll()
     debugging = (MsgBox("Do you want run in debug mode?", vbYesNo + vbQuestion, "Debug?") = vbYes)
 
     ' Disable screen updating for performance
-    Application.ScreenUpdating = debugging
+    Application.ScreenUpdating = False
 
     Call ZoteroLinkCitation(ActiveDocument.Fields, debugging)
 

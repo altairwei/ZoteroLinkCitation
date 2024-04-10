@@ -11,6 +11,9 @@ Type Citation
     End As Long
 End Type
 
+Global http As Object
+Global DOCID As String
+
 '-------------------------------------------------------------------
 ' VBA JSON Parser
 ' https://medium.com/swlh/excel-vba-parse-json-easily-c2213f4d8e7a
@@ -126,6 +129,23 @@ End Function
 '-------------------------------------------------------------------
 ' ZoteroLinkCitation Utilities
 '-------------------------------------------------------------------
+
+Function GenerateRandomString(ByVal length As Integer) As String
+    Dim characters As String
+    Dim result As String
+    Dim i As Integer
+    Dim position As Integer
+
+    characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    Randomize
+    
+    For i = 1 To length
+        position = Int((Len(characters) * Rnd) + 1)
+        result = result & Mid(characters, position, 1)
+    Next i
+    
+    GenerateRandomString = result
+End Function
 
 Private Sub QuickSort(arr As Variant, inLow As Long, inHigh As Long)
     Dim pivot As String
@@ -292,15 +312,102 @@ Private Sub AssertArrayLengthsEqual(array1 As Variant, array2 As Variant)
     End If
 End Sub
 
+'-------------------------------------------------------------------
+' Zotero HTTP Citing Protocol
+'-------------------------------------------------------------------
+
+Private Sub InitializeHttpRequest()
+    If http Is Nothing Then
+        Set http = CreateObject("WinHttp.WinHttpRequest.5.1")
+        http.setRequestHeader "Content-Type", "application/json"
+        http.SetTimeouts 5000
+    End If
+End Sub
+
+Private Function SendZoteroCommand(cmd As String, docId As String) As Object
+    Call InitializeHttpRequest
+
+    Dim jsonData As String
+    jsonData = "{""command"":""" & cmd & """, ""docId"": """ & docId & """}"
+
+    http.Open "POST", "http://127.0.0.1:23119/connector/document/execCommand", False
+    http.Send jsonData
+
+    If http.Status = 200 Then
+        Set SendZoteroCommand = ParseJSON(http.responseText, "json")
+    Else
+        Debug.Print "Error: " & http.Status & " " & http.StatusText
+    End If
+End Function
+
+Private Function RespondToZotero(jsonData As String) As Object
+    Call InitializeHttpRequest
+
+    http.Open "POST", "http://127.0.0.1:23119/connector/document/respond", False
+    http.Send jsonData
+
+    If http.Status = 200 Then
+        RespondToZotero = ParseJSON(http.responseText, "json")
+    Else
+        Debug.Print "Error: " & http.Status & " " & http.StatusText
+    End If
+End Function
+
+Private Function ZoteroAlert(resp As Object) As Integer
+    If resp("json.command") = "Document.displayAlert" Then
+        Dim dialogText As String
+        dialogText = resp("json.arguments.dialogText")
+
+        Dim buttons As Long
+        Select Case CInt(resp("json.arguments.buttons"))
+            Case 0: buttons = vbOKOnly
+            Case 1: buttons = vbOKCancel
+            Case 2: buttons = vbYesNo
+            Case 3: buttons = vbYesNoCancel
+            Case Else: buttons = vbOKOnly
+        End Select
+
+        Select Case CInt(resp("json.arguments.icon"))
+            Case 0: buttons = buttons + vbCritical
+            Case 1: buttons = buttons + vbInformation
+            Case 2: buttons = buttons + vbExclamation
+        End Select
+
+        Dim userResp As Integer
+        userResp = MsgBox(title:="Zotero Alert", prompt:=dialogText, buttons:= buttons)
+
+        Select Case userResp
+            Case vbOK: ZoteroAlert = 1
+            Case vbCancel: ZoteroAlert = 0
+            Case vbYes:
+                If CInt(resp("json.arguments.buttons")) = 2 Then
+                    ZoteroAlert = 1
+                Else
+                    ZoteroAlert = 2
+                End If
+            Case vbNo:
+                If CInt(resp("json.arguments.buttons")) = 2 Then
+                    ZoteroAlert = 0
+                Else
+                    ZoteroAlert = 1
+                End If
+        End Select
+    EndIf
+End Function
+
+Public Sub ZoteroForceRefreshAllFields()
+    ' Use /connector/ping to check Zotero Connector HTTP Server
+End Sub
+
+'-------------------------------------------------------------------
+' Citation Style Handler
+'-------------------------------------------------------------------
+
 Private Function ParseCSLCitationJson(ByVal code As String) As Object
     Dim jsonObj As Object
     Set jsonObj = ParseJSON(Trim(Replace(code, "ADDIN ZOTERO_ITEM CSL_CITATION", "")), "CSL")
     Set ParseCSLCitationJson = jsonObj
 End Function
-
-'-------------------------------------------------------------------
-' Citation Style Handler
-'-------------------------------------------------------------------
 
 ' Such as (Dweba et al., 2017; Hu et al., 2022; Moonjely et al., 2023)
 Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Citation, _
@@ -658,6 +765,8 @@ CleanUp:
 End Sub
 
 Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = False, Optional notify As Boolean = True)
+    DOCID = GenerateRandomString(44)
+
     ' Do not support Bookmark-type citations
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()

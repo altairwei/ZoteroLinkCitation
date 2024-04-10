@@ -616,21 +616,21 @@ Public Sub ZoteroLinkCitationWithinSelection()
 End Sub
 
 Public Sub ZoteroLinkCitationAll()
-    ' Declare variables for start and end positions
-    Dim nStart&, nEnd&
-    ' Capture current selection positions
-    nStart = Selection.Start
-    nEnd = Selection.End
-    ' Disable screen updating for performance
-    Application.ScreenUpdating = False
+    Dim originalRng As Range
+    Set originalRng = Selection.Range
 
     Dim debugging As Boolean
     debugging = (MsgBox("Do you want run in debug mode?", vbYesNo + vbQuestion, "Debug?") = vbYes)
 
+    ' Disable screen updating for performance
+    Application.ScreenUpdating = debugging
+
     Call ZoteroLinkCitation(ActiveDocument.Fields, debugging)
 
     ' Restore the original selection
-    ActiveDocument.Range(nStart, nEnd).Select
+    ActiveWindow.ScrollIntoView originalRng, True
+    originalRng.Select
+
     ' Re-enable screen updating
     Application.ScreenUpdating = True
 End Sub
@@ -659,34 +659,23 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
                                             " enter the name of that style below.")
     EndIf
 
-    ' Show field codes to manipulate Zotero fields
-    ActiveWindow.View.ShowFieldCodes = True
-    ' Prepare to find Zotero bibliography field,
-    ' "^d" instructing Word to search for any field in the document.
-    Selection.Find.ClearFormatting
-    With Selection.Find
-        .Text = "^d ADDIN ZOTERO_BIBL"
-        .Replacement.Text = ""
-        .Forward = True
-        .Wrap = wdFindContinue
-        .Format = False
-        .MatchCase = False
-        .MatchWholeWord = False
-        .MatchWildcards = False
-        .MatchSoundsLike = False
-        .MatchAllWordForms = False
-    End With
-    ' Execute find operation
-    Selection.Find.Execute
+    Dim i As Long
+    Dim bibField As Field
+    Set bibField = Nothing
 
-    ' Bookmark the Zotero bibliography for later reference
-    With ActiveDocument.Bookmarks
-        .Add Range:=Selection.Range, Name:="Zotero_Bibliography"
-        .DefaultSorting = wdSortByName
-        .ShowHidden = True
-    End With
-    ' Hide field codes
-    ActiveWindow.View.ShowFieldCodes = False
+    ' Find the Zotero bibliography field
+    For i = ActiveDocument.Fields.Count To 1 Step -1
+        If ActiveDocument.Fields(i).Type = wdFieldAddin Then
+            If InStr(ActiveDocument.Fields(i).Code, "ADDIN ZOTERO_BIBL") > 0 Then
+                Set bibField = ActiveDocument.Fields(i)
+                Exit For
+            EndIf
+        End If
+    Next i
+
+    If bibField Is Nothing Then
+        Err.Raise vbObjectError + 513, , "Can not find Zotero bibliography field."
+    End If
 
     ' Iterate through all fields in the document
     Dim aField As Field, iCount As Integer
@@ -694,15 +683,26 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
         ' Check if the field is a Zotero citation
         If aField.Type = wdFieldAddin Then
             If InStr(aField.Code, "ADDIN ZOTERO_ITEM") > 0 Then
+
                 If debugging Then
+                    ' Focus to next field
+                    Application.ScreenUpdating = True
+                    ActiveWindow.ScrollIntoView aField.Result, True
+                    aField.Result.Select
+
+                    ' Update the document
+                    DoEvents
+
                     If MsgBox("Processed " & iCount & " citations, and found the next group:" & vbCrLf & vbCrLf & _ 
                                 aField.Result.Text & vbCrLf & vbCrLf & "Do you want to continue?", _
                                 vbYesNo + vbQuestion, "Continue?") = vbNo Then
                         Exit For
                     End If
+
+                    Application.ScreenUpdating = False
                 End If
 
-                Dim i, cit As Citation, cits() As Citation
+                Dim cit As Citation, cits() As Citation
                 Call ExtractCitations(aField, cits, styleId)
 
                 ' Locate all citations in the field
@@ -726,10 +726,9 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
                     Dim titleAnchor As String
                     titleAnchor = ConvertToBookmarkName(title)
 
+                    ' Get the range of Zotero bibliography
                     Dim rngBibliography As Range
-
-                    ' First, get the range of the bookmark "Zotero_Bibliography"
-                    Set rngBibliography = ActiveDocument.Bookmarks("Zotero_Bibliography").Range
+                    Set rngBibliography = bibField.Result
 
                     With rngBibliography.Find
                         .ClearFormatting
@@ -786,6 +785,6 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
 
 ExitTheMacro:
 
-    MsgBox "Linked " & iCount & " Zotero citations.", vbInformation, "Finish"
+    If notify Then MsgBox "Linked " & iCount & " Zotero citations.", vbInformation, "Finish"
 
 End Sub

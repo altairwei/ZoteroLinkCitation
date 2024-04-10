@@ -1,10 +1,11 @@
 # ZoteroLinkCitation
 
-An MS Word macro that links [Zotero](https://www.zotero.org/) author-date or numeric style citations to their bibliography entry. This project was inspired by discussions of [Word: Possibility to link references and bibliography in a document?](https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document)
+An MS Word macro that links Zotero author-date or numeric style citations to their bibliography entry. This project was inspired by discussions of [Word: Possibility to link references and bibliography in a document?](https://forums.zotero.org/discussion/12431/word-possibility-to-link-references-and-bibliography-in-a-document)
 
 ## Features
 
-* The script automatically detects whether the citation style used in the document has been tested and supported. See [Supported Citation Styles](#supported-citation-styles).
+* The script automatically detects whether the citation style used in the document has been supported.
+* More than 10 citation styles have been tested. See [Supported Citation Styles](#supported-citation-styles).
 * The Zotero fields are preserved after linking to the bibliography.
 * Allows setting a unified Word text style for newly established links, enabling changes to the link's color, size, font, etc.
 * Correctly handles multiple references in the Author-Date style where the first author is the same.

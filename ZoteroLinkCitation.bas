@@ -14,6 +14,12 @@ End Type
 Global http As Object
 Global DOCID As String
 
+Private Enum Error
+    ZoteroError = vbObjectError + 5001
+    ZoteroNotRun = vbObjectError + 5002
+    ZoteroIsBusy = vbObjectError + 5003
+End Enum
+
 '-------------------------------------------------------------------
 ' VBA JSON Parser
 ' https://medium.com/swlh/excel-vba-parse-json-easily-c2213f4d8e7a
@@ -319,84 +325,143 @@ End Sub
 Private Sub InitializeHttpRequest()
     If http Is Nothing Then
         Set http = CreateObject("WinHttp.WinHttpRequest.5.1")
-        http.setRequestHeader "Content-Type", "application/json"
-        http.SetTimeouts 5000
     End If
 End Sub
+
+Private Function GetDocId() As String
+    If Len(DOCID) = 0 Then
+        DOCID = GenerateRandomString(44)
+    End If
+
+    GetDocId = DOCID
+End Function
 
 Private Function SendZoteroCommand(cmd As String, docId As String) As Object
     Call InitializeHttpRequest
 
     Dim jsonData As String
-    jsonData = "{""command"":""" & cmd & """, ""docId"": """ & docId & """}"
+    jsonData = "{""command"":""" & cmd & """, ""docId"":""" & docId & """}"
 
     http.Open "POST", "http://127.0.0.1:23119/connector/document/execCommand", False
+    http.SetRequestHeader "Content-Type", "application/json"
+
+    Debug.Print "Sent: " & jsonData
     http.Send jsonData
 
+    Dim resp As Object
     If http.Status = 200 Then
-        Set SendZoteroCommand = ParseJSON(http.responseText, "json")
+        Debug.Print "Received: " & http.responseText
+        Set resp = ParseJSON(http.responseText, "json")
+    ElseIf http.Status = 503 Then
+        Err.Raise Error.ZoteroIsBusy, "SendZoteroCommand", http.Status & " " & http.StatusText
+    ElseIf http.Status = 0 Then
+        Err.Raise Error.ZoteroNotRun, "SendZoteroCommand", http.Status & " " & http.StatusText
     Else
-        Debug.Print "Error: " & http.Status & " " & http.StatusText
+        Err.Raise vbObjectError + 1, "SendZoteroCommand", http.Status & " " & http.StatusText
     End If
+
+    Set SendZoteroCommand = resp
 End Function
 
-Private Function RespondToZotero(jsonData As String) As Object
+Private Function RespondToZotero(Optional jsonData As String = "null") As Object
     Call InitializeHttpRequest
 
     http.Open "POST", "http://127.0.0.1:23119/connector/document/respond", False
+    http.SetRequestHeader "Content-Type", "application/json"
+
+    Debug.Print "Sent: " & jsonData
     http.Send jsonData
 
+    Dim resp As Object
     If http.Status = 200 Then
-        RespondToZotero = ParseJSON(http.responseText, "json")
+        Debug.Print "Received: " & http.responseText
+        Set resp = ParseJSON(http.responseText, "json")
     Else
-        Debug.Print "Error: " & http.Status & " " & http.StatusText
+        Err.Raise Error.ZoteroError, "RespondToZotero", http.Status & " " & http.StatusText
     End If
+
+    Set RespondToZotero = resp 
 End Function
 
 Private Function ZoteroAlert(resp As Object) As Integer
-    If resp("json.command") = "Document.displayAlert" Then
-        Dim dialogText As String
-        dialogText = resp("json.arguments.dialogText")
+    Dim dialogText As String
+    dialogText = resp("json.arguments(1)")
+    dialogText = Replace(dialogText, "\n", vbCrLf)
 
-        Dim buttons As Long
-        Select Case CInt(resp("json.arguments.buttons"))
-            Case 0: buttons = vbOKOnly
-            Case 1: buttons = vbOKCancel
-            Case 2: buttons = vbYesNo
-            Case 3: buttons = vbYesNoCancel
-            Case Else: buttons = vbOKOnly
-        End Select
+    Dim buttons As Long
+    Select Case CInt(resp("json.arguments(3)"))
+        Case 0: buttons = vbOKOnly
+        Case 1: buttons = vbOKCancel
+        Case 2: buttons = vbYesNo
+        Case 3: buttons = vbYesNoCancel
+        Case Else: buttons = vbOKOnly
+    End Select
 
-        Select Case CInt(resp("json.arguments.icon"))
-            Case 0: buttons = buttons + vbCritical
-            Case 1: buttons = buttons + vbInformation
-            Case 2: buttons = buttons + vbExclamation
-        End Select
+    Select Case CInt(resp("json.arguments(2)"))
+        Case 0: buttons = buttons + vbCritical
+        Case 1: buttons = buttons + vbInformation
+        Case 2: buttons = buttons + vbExclamation
+    End Select
 
-        Dim userResp As Integer
-        userResp = MsgBox(title:="Zotero Alert", prompt:=dialogText, buttons:= buttons)
+    Dim userResp As Integer
+    userResp = MsgBox(title:="Zotero Alert", prompt:=dialogText, buttons:= buttons)
 
-        Select Case userResp
-            Case vbOK: ZoteroAlert = 1
-            Case vbCancel: ZoteroAlert = 0
-            Case vbYes:
-                If CInt(resp("json.arguments.buttons")) = 2 Then
-                    ZoteroAlert = 1
-                Else
-                    ZoteroAlert = 2
-                End If
-            Case vbNo:
-                If CInt(resp("json.arguments.buttons")) = 2 Then
-                    ZoteroAlert = 0
-                Else
-                    ZoteroAlert = 1
-                End If
-        End Select
-    EndIf
+    Dim respToSend As Integer
+    Select Case userResp
+        Case vbOK: respToSend = 1
+        Case vbCancel: respToSend = 0
+        Case vbYes:
+            If CInt(resp("json.arguments(3)")) = 2 Then
+                respToSend = 1
+            Else
+                respToSend = 2
+            End If
+        Case vbNo:
+            If CInt(resp("json.arguments(3)")) = 2 Then
+                respToSend = 0
+            Else
+                respToSend = 1
+            End If
+    End Select
+
+    ZoteroAlert = respToSend
 End Function
+
+Public Sub CancelZoteroTransaction()
+    Dim cancelTransaction As String
+    cancelTransaction = "{" & _
+        """error"": ""Cancel"", " & _
+        """message"": ""Cancel Zotero Transaction"", " & _
+        """stack"": """"" & _
+    "}"
+
+    Dim resp As Object
+    Set resp = RespondToZotero(cancelTransaction)
+
+    If resp("json.command") = "Document.activate" Then
+        Application.Activate
+        Set resp = RespondToZotero
+    End If
+
+    If resp("json.command") = "Document.displayAlert" Then
+        RespondToZotero("" & ZoteroAlert(resp))
+        Application.Activate
+    End If
+
+    RespondToZotero
+End Sub
 
 Public Sub ZoteroForceRefreshAllFields()
     ' Use /connector/ping to check Zotero Connector HTTP Server
+    Dim resp As Object
+    Set resp = SendZoteroCommand("addEditCitation", GetDocId())
+    RespondToZotero("{" & _
+        """documentID"":""" & GetDocId() & """," & _
+        """outputFormat"":""rdt""," & _
+        """supportedNotes"":[""footnotes""]" & _
+    "}")
+    CancelZoteroTransaction
+
 End Sub
 
 '-------------------------------------------------------------------
@@ -765,8 +830,6 @@ CleanUp:
 End Sub
 
 Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = False, Optional notify As Boolean = True)
-    DOCID = GenerateRandomString(44)
-
     ' Do not support Bookmark-type citations
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()

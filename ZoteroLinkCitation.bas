@@ -231,14 +231,14 @@ Private Function GetZoteroPrefs() As Object
     Dim dataElem As Object
     Set dataElem = xmlDoc.SelectSingleNode("//data")
     If Not dataElem Is Nothing Then
-        dict("data-version") = dataElem.getAttribute("data-version")
-        dict("zotero-version") = dataElem.getAttribute("zotero-version")
+        dict("dataVersion") = dataElem.getAttribute("data-version")
+        dict("zoteroVersion") = dataElem.getAttribute("zotero-version")
     End If
     
     Dim sessionElem As Object
     Set sessionElem = xmlDoc.SelectSingleNode("//session")
     If Not sessionElem Is Nothing Then
-        dict("session-id") = sessionElem.getAttribute("id")
+        dict("sessionID") = sessionElem.getAttribute("id")
     End If
 
     Dim styleElem As Object
@@ -246,9 +246,10 @@ Private Function GetZoteroPrefs() As Object
     If Not styleElem Is Nothing Then
         Dim segments() As String
         segments = Split(styleElem.getAttribute("id"), "/")
-        dict("style-id") = segments(UBound(segments))
-        dict("hasBibliography") = styleElem.getAttribute("hasBibliography")
-        dict("bibliographyStyleHasBeenSet") = styleElem.getAttribute("bibliographyStyleHasBeenSet")
+        dict("style.styleID") = segments(UBound(segments))
+        dict("style.locale") = styleElem.getAttribute("locale")
+        dict("style.hasBibliography") = styleElem.getAttribute("hasBibliography")
+        dict("style.bibliographyStyleHasBeenSet") = styleElem.getAttribute("bibliographyStyleHasBeenSet")
     End If
 
     Dim prefElem As Object
@@ -258,6 +259,71 @@ Private Function GetZoteroPrefs() As Object
     End If
 
     Set GetZoteroPrefs = dict
+End Function
+
+Private Function JsonKV(key As String, val As String, Optional quote As Boolean = True) As String
+    Dim output As String
+    output = """" & key & """: "
+
+    If quote Then output = output & """"
+    output = output & val
+    If quote Then output = output & """"
+
+    JsonKV = output
+End Function
+
+Private Function JsonObject(ParamArray strings() As Variant) As String
+    Dim result As String
+    Dim i As Long
+
+    For i = LBound(strings) To UBound(strings)
+        result = result & CStr(strings(i)) & ","
+    Next i
+
+    If Len(result) > 0 Then
+        result = Left(result, Len(result) - Len(","))
+    End If
+
+    result = "{" & result & "}"
+
+    JsonObject = result
+End Function
+
+Private Function GetZoteroPrefsAsJsonString() As String
+    ' To Document.getDocumentData
+    Dim prefs As Object
+    Set prefs = GetZoteroPrefs()
+
+    Dim hasBibliography As String
+    If CInt(prefs("style.hasBibliography")) = 1 Then
+        hasBibliography = "true"
+    Else
+        hasBibliography = "false"
+    End If
+
+    Dim bibliographyStyleHasBeenSet As String
+    If CInt(prefs("style.bibliographyStyleHasBeenSet")) = 1 Then
+        bibliographyStyleHasBeenSet = "true"
+    Else
+        bibliographyStyleHasBeenSet = "false"
+    End If
+
+    GetZoteroPrefsAsJsonString = JsonObject( _
+        JsonKV("zoteroVersion", prefs("zoteroVersion")), _
+        JsonKV("dataVersion", prefs("dataVersion"), False), _
+        JsonKV("sessionID", prefs("sessionID")), _
+        JsonKV(quote:=False, key:="prefs", val:=JsonObject( _
+            JsonKV("fieldType", prefs("pref-fieldType")), _
+            JsonKV("noteType", "0", False), _
+            JsonKV("automaticJournalAbbreviations", "false", False) _
+        )), _
+        JsonKV(quote:=False, key:="style", val:=JsonObject( _
+            JsonKV("styleID", "http://www.zotero.org/styles/" & prefs("style.styleID")), _
+            JsonKV("locale", prefs("style.locale")), _
+            JsonKV("hasBibliography", hasBibliography, False), _
+            JsonKV("bibliographyStyleHasBeenSet", bibliographyStyleHasBeenSet, False) _
+        )) _
+    )
 End Function
 
 Private Function RemoveSpecifiedHtmlTags(inputString As String, tagsToRemove As Variant) As String
@@ -427,7 +493,11 @@ Private Function ZoteroAlert(resp As Object) As Integer
     ZoteroAlert = respToSend
 End Function
 
-Public Sub CancelZoteroTransaction()
+Public Sub CancelZotero()
+    CancelZoteroTransaction
+End Sub
+
+Private Sub CancelZoteroTransaction(Optional silent As Boolean = False)
     Dim cancelTransaction As String
     cancelTransaction = "{" & _
         """error"": ""Cancel"", " & _
@@ -438,15 +508,16 @@ Public Sub CancelZoteroTransaction()
     Dim resp As Object
     Set resp = RespondToZotero(cancelTransaction)
 
-    If resp("json.command") = "Document.activate" Then
-        Application.Activate
-        Set resp = RespondToZotero
+    Application.Activate
+    Set resp = RespondToZotero
+
+    If silent Then
+        RespondToZotero("0")
+    Else
+        RespondToZotero("" & ZoteroAlert(resp))
     End If
 
-    If resp("json.command") = "Document.displayAlert" Then
-        RespondToZotero("" & ZoteroAlert(resp))
-        Application.Activate
-    End If
+    Application.Activate
 
     RespondToZotero
 End Sub
@@ -454,13 +525,33 @@ End Sub
 Public Sub ZoteroForceRefreshAllFields()
     ' Use /connector/ping to check Zotero Connector HTTP Server
     Dim resp As Object
+
     Set resp = SendZoteroCommand("addEditCitation", GetDocId())
-    RespondToZotero("{" & _
-        """documentID"":""" & GetDocId() & """," & _
-        """outputFormat"":""rdt""," & _
-        """supportedNotes"":[""footnotes""]" & _
-    "}")
-    CancelZoteroTransaction
+
+    ' To Application.getActiveDocument
+    Set resp = RespondToZotero(JsonObject( _
+        JsonKV("documentID", GetDocId()), _
+        JsonKV("outputFormat", "rdt"), _
+        JsonKV("supportedNotes", "[""footnotes""]", False) _
+    ))
+
+    ' To Document.getDocumentData
+    Dim prefs As Object
+    Set prefs = GetZoteroPrefs()
+    Set resp = RespondToZotero(GetZoteroPrefsAsJsonString())
+
+    ' To Document.cursorInField
+    Set resp = RespondToZotero("null")
+
+    ' To Document.canInsertField
+    Set resp = RespondToZotero("true")
+
+    ' To Document.cursorInField
+    Set resp = RespondToZotero("null")
+
+    ' To Document.insertField
+
+    CancelZoteroTransaction True
 
 End Sub
 
@@ -839,7 +930,7 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
     End If
 
     Dim styleId As String
-    styleId = prefs("style-id")
+    styleId = prefs("style.styleID")
     If Not isSupportedStyle(styleId) Then
         MsgBox "The current citation style is not yet supported: " & styleId, vbCritical, "Error"
         Exit Sub

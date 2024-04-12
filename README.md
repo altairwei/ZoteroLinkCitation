@@ -5,7 +5,7 @@ An MS Word macro that links Zotero author-date or numeric style citations to the
 ## Features
 
 * The script automatically detects whether the citation style used in the document has been supported.
-* More than 10 citation styles have been tested. See [Supported Citation Styles](#supported-citation-styles).
+* More than 10 citation styles have been tested, see the list of [Supported Citation Styles](#supported-citation-styles).
 * The Zotero fields are preserved after linking to the bibliography.
 * Allows setting a unified Word text style for newly established links, enabling changes to the link's color, size, font, etc.
 * Correctly handles multiple references in the Author-Date style where the first author is the same.
@@ -19,7 +19,7 @@ This guide is aimed at beginners and provides detailed instructions on importing
 ### Prerequisites
 
 - Microsoft Word (2016 or later recommended for compatibility).
-- The `ZoteroLinkCitation.bas` file.
+- The [`ZoteroLinkCitation.bas`](./ZoteroLinkCitation.bas) file.
 
 ### Step 1: Accessing the VBA Editor
 

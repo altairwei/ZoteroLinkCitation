@@ -20,7 +20,7 @@ This guide is aimed at beginners and provides detailed instructions on importing
 ### Prerequisites
 
 - Microsoft Word (2016 or later recommended for compatibility).
-- The <a href="https://raw.githubusercontent.com/altairwei/ZoteroLinkCitation/master/ZoteroLinkCitation.bas" download="ZoteroLinkCitation.bas">`ZoteroLinkCitation.bas`</a> file.
+- The [`ZoteroLinkCitation.bas`](https://raw.githubusercontent.com/altairwei/ZoteroLinkCitation/master/ZoteroLinkCitation.bas) file.
 
 ### Step 1: Accessing the VBA Editor
 
@@ -91,14 +91,16 @@ This problem is nearly impossible to resolve with VBA scripts, and currently, th
 
 ### Author-Year styles
 
-* [American Political Science Association](http://www.zotero.org/styles/american-political-science-association)
-* [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa)
-* [American Sociological Association 6th/7th edition](http://www.zotero.org/styles/american-sociological-association)
+* [American Political Science Association](http://www.zotero.org/styles/american-political-science-association) **&dagger;**
+* [American Psychological Association (APA) 7th edition](http://www.zotero.org/styles/apa) **&dagger;**
+* [American Sociological Association 6th/7th edition](http://www.zotero.org/styles/american-sociological-association) **&dagger;**
 * [Chicago Manual of Style 17th edition (author-date)](http://www.zotero.org/styles/chicago-author-date)
-* [China National Standard GB/T 7714-2015 (author-date)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date)
-* [Cite Them Right 12th edition - Harvard](http://www.zotero.org/styles/harvard-cite-them-right)
+* [China National Standard GB/T 7714-2015 (author-date)](http://www.zotero.org/styles/china-national-standard-gb-t-7714-2015-author-date) **&dagger;**
+* [Cite Them Right 12th edition - Harvard](http://www.zotero.org/styles/harvard-cite-them-right) **&dagger;**
 * [Elsevier - Harvard (with titles)](http://www.zotero.org/styles/elsevier-harvard)
 * [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
+
+**&dagger;** In these citation styles, only the year part is linked to the bibliography by default. You can change this default behaviour by manually modifying [the parameter](https://github.com/altairwei/ZoteroLinkCitation/blob/74f5728926f5229939dbcffcf3f91b49b333243d/ZoteroLinkCitation.bas#L571) `onlyYear` in the script.
 
 ### Numeric styles
 

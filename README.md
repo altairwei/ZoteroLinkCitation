@@ -20,7 +20,7 @@ This guide is aimed at beginners and provides detailed instructions on importing
 ### Prerequisites
 
 - Microsoft Word (2016 or later recommended for compatibility).
-- The [`ZoteroLinkCitation.bas`](./ZoteroLinkCitation.bas) file.
+- The <a href="https://raw.githubusercontent.com/altairwei/ZoteroLinkCitation/master/ZoteroLinkCitation.bas" download="ZoteroLinkCitation.bas">`ZoteroLinkCitation.bas`</a> file.
 
 ### Step 1: Accessing the VBA Editor
 

@@ -298,6 +298,13 @@ Private Function ParseCSLCitationJson(ByVal code As String) As Object
     Set ParseCSLCitationJson = jsonObj
 End Function
 
+Function StyleExists(ByVal styleToTest As String, ByVal docToTest as Word.Document) As Boolean
+    Dim testStyle as Word.Style
+    On Error Resume Next
+    Set testStyle = docToTest.Styles(styleToTest)
+    StyleExists = Not testStyle Is Nothing
+End Function
+
 '-------------------------------------------------------------------
 ' Citation Style Handler
 '-------------------------------------------------------------------
@@ -676,10 +683,12 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
     Dim userTextStyle As String
 
     If notify Then
-        userTextStyle = InputBox(title := "Set a style for linked citations?", _
-                                prompt := "If you want to set a certain style for linked citations," & _
-                                            " enter the name of that style below.")
-    EndIf
+        Dim resp As String
+        resp = InputBox(title := "Set an MS Word style for hyperlinks?", _
+                        prompt := "If you want to set a certain style for hyperlinks," & _
+                                    " enter the name of that style below.")
+        If StyleExists(resp, ActiveDocument) Then userTextStyle = resp
+    End If
 
     Dim i As Long
     Dim bibField As Field

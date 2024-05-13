@@ -70,6 +70,10 @@ Press `Alt` + `F8`, find and select `ZoteroLinkCitationAll` from the list, then 
 3. Select the macro `ZoteroLinkCitationAll`.
 4. Click `Add` to move the macro to the list of buttons on the `Quick Access Toolbar`.
 
+### (Optional) Step 6: Select an existing MS Word text style
+
+The `ZoteroLinkCitationAll` macro opens a dialog that allows you to set a uniform Word text style for newly created hyperlinks, which can change the color, size, font, etc. of the hyperlink.
+
 ### Important Tips
 
 - **Macro Security**: Only run macros from trusted sources. Macros can contain harmful code.
@@ -100,7 +104,7 @@ This problem is nearly impossible to resolve with VBA scripts, and currently, th
 * [Elsevier - Harvard (with titles)](http://www.zotero.org/styles/elsevier-harvard)
 * [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
 
-**&dagger;** In these citation styles, only the year part is linked to the bibliography by default. You can change this default behaviour by manually modifying [the parameter](https://github.com/altairwei/ZoteroLinkCitation/blob/74f5728926f5229939dbcffcf3f91b49b333243d/ZoteroLinkCitation.bas#L571) `onlyYear` in the script.
+**&dagger;** In these citation styles, only the year part is linked to the bibliography by default. You can change this default behaviour by manually modifying [the parameter](https://github.com/altairwei/ZoteroLinkCitation/blob/v0.1.1/ZoteroLinkCitation.bas#L581) `onlyYear` in the script.
 
 ### Numeric styles
 

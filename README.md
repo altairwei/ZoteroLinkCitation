@@ -104,7 +104,7 @@ This problem is nearly impossible to resolve with VBA scripts, and currently, th
 * [Elsevier - Harvard (with titles)](http://www.zotero.org/styles/elsevier-harvard)
 * [Molecular Plant](http://www.zotero.org/styles/molecular-plant)
 
-**&dagger;** In these citation styles, only the year part is linked to the bibliography by default. You can change this default behaviour by manually modifying [the parameter](https://github.com/altairwei/ZoteroLinkCitation/blob/v0.1.1/ZoteroLinkCitation.bas#L581) `onlyYear` in the script.
+**&dagger;** In these citation styles, only the year part is linked to the bibliography by default. You can change this default behaviour by manually modifying [the parameter](https://github.com/altairwei/ZoteroLinkCitation/blob/v0.1.1/ZoteroLinkCitation.bas#L578) `onlyYear` in the script.
 
 ### Numeric styles
 

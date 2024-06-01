@@ -259,6 +259,25 @@ Private Function RemoveHtmlTags(inputString As String) As String
     RemoveHtmlTags = RemoveSpecifiedHtmlTags(inputString, tagsToRemove)
 End Function
 
+Function SimpleHash(ByVal inputString As String) As String
+    Dim i As Long
+    Dim hashValue As Long
+
+    For i = 1 To Len(inputString)
+        hashValue = hashValue + (Asc(Mid(inputString, i, 1)) * i)
+    Next i
+
+    Dim modValue As Long
+    modValue = 100
+    hashValue = hashValue Mod modValue
+
+    If hashValue < 0 Then
+        hashValue = hashValue + modValue
+    End If
+
+    SimpleHash = Format$(hashValue, "000")
+End Function
+
 Private Function ConvertToBookmarkName(ByVal str As String) As String
     Dim result As String
     Dim i As Integer
@@ -279,7 +298,8 @@ Private Function ConvertToBookmarkName(ByVal str As String) As String
 
     ' Limit the length to 40 characters
     If Len(result) > 40 Then
-        result = Left(result, 40)
+        result = Left(result, 36)
+        result = result & "_" & SimpleHash(str)
     End If
 
     ConvertToBookmarkName = result

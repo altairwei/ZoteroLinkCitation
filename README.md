@@ -10,6 +10,20 @@ An MS Word macro that links Zotero author-date or numeric style citations to the
 * Allows setting a unified Word text style for newly established links, enabling changes to the link's color, size, font, etc.
 * Correctly handles multiple references in the Author-Date style where the first author is the same.
 
+## Examples
+
+Numeric example:
+
+![Example of numeric style](doc/example_numeric.png)
+
+Author-year example:
+
+![Example of linking author and year](doc/example_link_author_year.png)
+
+Author-year example (only the year part is linked):
+
+![Example of linking only year](doc/example_link_only_year.png)
+
 ## How to Use
 
 > [!CAUTION]

@@ -635,17 +635,8 @@ Public Sub ZoteroLinkCitationWithinSelection()
             targetFields.Add fld
         Next fld
 
-        On Error GoTo ErrHandler
-
         Call ZoteroLinkCitation(targetFields, False, False)
 
-        GoTo CleanUp
-
-    ErrHandler:
-        MsgBox "Error: " & Err.Description
-        GoTo CleanUp
-
-    CleanUp:
         ' Restore the original selection
         ActiveWindow.ScrollIntoView originalRng, True
         originalRng.Select
@@ -664,17 +655,8 @@ Public Sub ZoteroLinkCitationAll()
     ' Disable screen updating for performance
     Application.ScreenUpdating = False
 
-    On Error GoTo ErrHandler
-
     Call ZoteroLinkCitation(ActiveDocument.Fields, debugging)
 
-    GoTo CleanUp
-
-ErrHandler:
-    MsgBox "Error: " & Err.Description
-    GoTo CleanUp
-
-CleanUp:
     ' Restore the original selection
     ActiveWindow.ScrollIntoView originalRng, True
     originalRng.Select

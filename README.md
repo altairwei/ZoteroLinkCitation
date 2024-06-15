@@ -95,6 +95,10 @@ The `ZoteroLinkCitationAll` macro opens a dialog that allows you to set a unifor
 
 ## Known Issues
 
+### Manually creating hyperlinks in citations or removing brackets can cause an error of `Subscript out of range`
+
+If you create hyperlinks in citations or remove brackets manually, you may get an error called `Subscript out of range`. `ZoteroLinkCitation` relies on brackets `[]` or `()` to recognize the boundary of Zotero citations, and match each citation in the field to their CSL data by text parsing. So please revert to the original state before using `ZoteroLinkCitation`, if these changes already exist in your document.
+
 ### Citations are linked to wrong references in a field containing multiple citations
 
 This type of mismatch only occurs among different citations within the same field in Word documents and is prone to happen when your document switches between the Author-Date and Numeric styles.

@@ -52,7 +52,7 @@ Private Function ParseArr(key$)
         Select Case token(p)
             Case "}"
             Case "{":  ParseObj key & ArrayID(e)
-            Case "[":  ParseArr key
+            Case "[":  ParseArr key & ArrayID(e)
             Case "]":  Exit Do
             Case ":":  key = key & ArrayID(e)
             Case ",":  e = e + 1

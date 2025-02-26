@@ -767,6 +767,7 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
                         .ClearFormatting
                         .Text = Left(title, 255)
                         .Forward = True
+                        .MatchPhrase = True
                         .Wrap = wdFindStop ' Stop when reaching the end of the range
                         .Format = False
                         .MatchCase = False

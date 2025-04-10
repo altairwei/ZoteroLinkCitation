@@ -579,7 +579,7 @@ Private Function isSupportedStyle(ByVal style As String) As Boolean
     predefinedList = "|" & _
         "molecular-plant|ieee|apa|vancouver|american-chemical-society|" & _
         "american-medical-association|nature|american-political-science-association|" & _
-        "american-sociological-association|chicago-author-date|" & _
+        "american-sociological-association|chicago-author-date|bmc-medicine|" & _
         "china-national-standard-gb-t-7714-2015-numeric|" & _
         "china-national-standard-gb-t-7714-2015-author-date|" & _
         "harvard-cite-them-right|elsevier-harvard|modern-language-association|"
@@ -606,7 +606,7 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
         Case "vancouver"
             Call ExtractSerialNumberCitations(field, citations, "()")
 
-        Case "china-national-standard-gb-t-7714-2015-numeric"
+        Case "china-national-standard-gb-t-7714-2015-numeric", "bmc-medicine"
             Call ExtractSerialNumberCitations(field, citations, "[]")
 
         Case "american-chemical-society", "american-medical-association", "nature"
@@ -671,7 +671,10 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()
     If Not prefs("pref-fieldType") = "Field" Then
-        MsgBox "Only support 'Fields' type citations", vbCritical, "Error"
+        MsgBox "Only support 'Fields' type citations" & vbCrLf & vbCrLf & _
+            "Click on Document Preferences in Word, then expand the Advanced Options section. " & _
+            "This will allow you to verify whether the 'Store citation as bookmarks' option was accidentally enabled.", _
+            vbCritical, "Error"
         Exit Sub
     End If
 
@@ -767,7 +770,7 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
                         .ClearFormatting
                         .Text = Left(title, 255)
                         .Forward = True
-                        .MatchPhrase = True
+                        ' .MatchPhrase = True
                         .Wrap = wdFindStop ' Stop when reaching the end of the range
                         .Format = False
                         .MatchCase = False

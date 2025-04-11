@@ -183,10 +183,7 @@ Private Function ExtractZoteroPrefData() As String
     ExtractZoteroPrefData = concatenatedValues
 End Function
 
-Private Function GetZoteroPrefs() As Object
-    Dim zoteroData As String
-    zoteroData = ExtractZoteroPrefData()
-
+Private Function GetZoteroPrefsFromXml(zoteroData As String) As Object
     Dim xmlDoc As Object
     Set xmlDoc = CreateObject("MSXML2.DOMDocument.6.0")
 
@@ -231,7 +228,47 @@ Private Function GetZoteroPrefs() As Object
         dict("pref-fieldType") = prefElem.getAttribute("value")
     End If
 
-    Set GetZoteroPrefs = dict
+    Set GetZoteroPrefsFromXml = dict
+End Function
+
+Private Function GetZoteroPrefsFromJson(zoteroData As String) As Object
+    Dim jsonObj As Object
+    Set jsonObj = ParseJSON(Trim(zoteroData), "prefs")
+
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    dict("data-version") = jsonObj("prefs.dataVersion")
+    dict("zotero-version") = jsonObj("prefs.zoteroVersion")
+    dict("session-id") = jsonObj("prefs.sessionID")
+
+    Dim segments() As String
+    segments = Split(jsonObj("prefs.style.styleID"), "/")
+    dict("style-id") = segments(UBound(segments))
+    dict("hasBibliography") = jsonObj("prefs.style.hasBibliography")
+    dict("bibliographyStyleHasBeenSet") = jsonObj("prefs.style.bibliographyStyleHasBeenSet")
+
+    dict("pref-fieldType") = jsonObj("prefs.prefs.fieldType")
+
+    Set GetZoteroPrefsFromJson = dict
+End Function
+
+Private Function GetZoteroPrefs() As Object
+    Dim zoteroData As String
+    zoteroData = ExtractZoteroPrefData()
+
+    Dim firstChar As String
+    firstChar = Left(Trim(zoteroData), 1)
+
+    Select Case firstChar
+        Case "<"
+            Set GetZoteroPrefs = GetZoteroPrefsFromXml(zoteroData)
+        Case "{", "["
+            Set GetZoteroPrefs = GetZoteroPrefsFromJson(zoteroData)
+        Case Else
+            Err.Raise vbObjectError + 1, "GetZoteroPrefs", "Can not find Zotero Preference in this document."
+    End Select
+
 End Function
 
 Private Function RemoveSpecifiedHtmlTags(inputString As String, tagsToRemove As Variant) As String

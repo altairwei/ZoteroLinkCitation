@@ -1,3 +1,4 @@
+Attribute VB_Name = "ZoteroLinkCitation"
 ' An MS Word macro that links author-date or number style citations to their bibliography entry.
 ' altair_wei@outlook.com
 ' https://github.com/altairwei/ZoteroLinkCitation

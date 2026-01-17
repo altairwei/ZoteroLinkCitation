@@ -619,7 +619,8 @@ Private Function isSupportedStyle(ByVal style As String) As Boolean
         "american-sociological-association|chicago-author-date|bmc-medicine|" & _
         "china-national-standard-gb-t-7714-2015-numeric|" & _
         "china-national-standard-gb-t-7714-2015-author-date|" & _
-        "harvard-cite-them-right|elsevier-harvard|modern-language-association|"
+        "harvard-cite-them-right|elsevier-harvard|modern-language-association|" & _
+        "acm-sig-proceedings|acm-sig-proceedings-long-author-list|"
     style = "|" & style & "|"
     isSupportedStyle = InStr(1, predefinedList, style, vbTextCompare) > 0
 End Function
@@ -643,7 +644,8 @@ Private Sub ExtractCitations(field As Field, ByRef citations() As Citation, styl
         Case "vancouver"
             Call ExtractSerialNumberCitations(field, citations, "()")
 
-        Case "china-national-standard-gb-t-7714-2015-numeric", "bmc-medicine"
+        Case "china-national-standard-gb-t-7714-2015-numeric", "bmc-medicine", _
+             "acm-sig-proceedings-long-author-list", "acm-sig-proceedings"
             Call ExtractSerialNumberCitations(field, citations, "[]")
 
         Case "american-chemical-society", "american-medical-association", "nature"

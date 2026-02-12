@@ -20,7 +20,7 @@ Private p&, token, dic
 Private Function ParseJSON(json$, Optional key$ = "obj") As Object
     p = 1
     token = Tokenize(json)
-    Set dic = CreateObject("Scripting.Dictionary")
+    Set dic = CreateDict()
     If token(p) = "{" Then ParseObj key Else ParseArr key
     Set ParseJSON = dic
 End Function
@@ -62,8 +62,12 @@ Private Function ParseArr(key$)
 End Function
 
 Private Function Tokenize(s$)
-    Const Pattern = """(([^""\\]|\\.)*)""|[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?|\w+|[^\s""']+?"
-    Tokenize = RExtract(s, Pattern, True)
+    #If Mac Then
+        Tokenize = TokenizeVBA(s)
+    #Else
+        Const Pattern = """(([^""\\]|\\.)*)""""|[+\-]?(?:0|[1-9]\d*)(?:\.\d*)?(?:[eE][+\-]?\d+)?|\w+|[^\s""']+?"
+        Tokenize = RExtract(s, Pattern, True)
+    #End If
 End Function
 
 Private Function RExtract(s$, Pattern, Optional bGroup1Bias As Boolean, Optional bGlobal As Boolean = True)
@@ -87,12 +91,130 @@ Private Function RExtract(s$, Pattern, Optional bGroup1Bias As Boolean, Optional
   RExtract = v
 End Function
 
+' Pure VBA JSON tokenizer for macOS compatibility (no VBScript.RegExp dependency)
+Private Function TokenizeVBA(s$)
+    Dim tokens() As String
+    Dim tCount As Long
+    Dim i As Long
+    Dim sLen As Long
+    Dim ch As String
+    Dim strVal As String
+    Dim numStr As String
+    Dim word As String
+
+    sLen = Len(s)
+    tCount = 0
+    ReDim tokens(1 To sLen + 1)
+
+    i = 1
+    Do While i <= sLen
+        ch = Mid(s, i, 1)
+
+        ' Skip whitespace
+        If ch = " " Or ch = vbCr Or ch = vbLf Or ch = vbTab Then
+            i = i + 1
+
+        ' String literal
+        ElseIf ch = """" Then
+            strVal = ""
+            i = i + 1
+            Do While i <= sLen
+                ch = Mid(s, i, 1)
+                If ch = "\" Then
+                    ' Keep escape sequences as-is (matching regex behavior)
+                    strVal = strVal & ch
+                    i = i + 1
+                    If i <= sLen Then
+                        strVal = strVal & Mid(s, i, 1)
+                    End If
+                ElseIf ch = """" Then
+                    Exit Do
+                Else
+                    strVal = strVal & ch
+                End If
+                i = i + 1
+            Loop
+            i = i + 1
+            tCount = tCount + 1
+            tokens(tCount) = strVal
+
+        ' Number (optionally with sign)
+        ElseIf ch Like "[0-9]" Or _
+               (ch = "-" And i + 1 <= sLen And Mid(s, i + 1, 1) Like "[0-9]") Or _
+               (ch = "+" And i + 1 <= sLen And Mid(s, i + 1, 1) Like "[0-9]") Then
+            numStr = ch
+            i = i + 1
+            Do While i <= sLen
+                ch = Mid(s, i, 1)
+                If ch Like "[0-9]" Or ch = "." Then
+                    numStr = numStr & ch
+                    i = i + 1
+                ElseIf ch = "e" Or ch = "E" Then
+                    numStr = numStr & ch
+                    i = i + 1
+                    ' Optional sign after exponent
+                    If i <= sLen Then
+                        ch = Mid(s, i, 1)
+                        If ch = "+" Or ch = "-" Then
+                            numStr = numStr & ch
+                            i = i + 1
+                        End If
+                    End If
+                Else
+                    Exit Do
+                End If
+            Loop
+            tCount = tCount + 1
+            tokens(tCount) = numStr
+
+        ' Word (true, false, null, identifiers)
+        ElseIf ch Like "[A-Za-z_]" Then
+            word = ch
+            i = i + 1
+            Do While i <= sLen
+                ch = Mid(s, i, 1)
+                If ch Like "[A-Za-z0-9_]" Then
+                    word = word & ch
+                    i = i + 1
+                Else
+                    Exit Do
+                End If
+            Loop
+            tCount = tCount + 1
+            tokens(tCount) = word
+
+        ' Punctuation and other single characters
+        Else
+            tCount = tCount + 1
+            tokens(tCount) = ch
+            i = i + 1
+        End If
+    Loop
+
+    If tCount > 0 Then
+        ReDim Preserve tokens(1 To tCount)
+    Else
+        ReDim tokens(1 To 1)
+        tokens(1) = ""
+    End If
+
+    TokenizeVBA = tokens
+End Function
+
 Private Function ArrayID$(e)
     ArrayID = "(" & e & ")"
 End Function
 
 Private Function ReducePath$(key$)
     If InStr(key, ".") Then ReducePath = Left(key, InStrRev(key, ".") - 1) Else ReducePath = key
+End Function
+
+Private Function CreateDict() As Object
+    #If Mac Then
+        Set CreateDict = New CustomDictionary
+    #Else
+        Set CreateDict = CreateObject("Scripting.Dictionary")
+    #End If
 End Function
 
 Function GetFilteredValues(dic, match)
@@ -102,7 +224,7 @@ Function GetFilteredValues(dic, match)
     For i = 0 To UBound(v)
         If v(i) Like match Then
             c = c + 1
-            w(c) = dic(v(i))
+            w(c) = dic.Item(v(i))
         End If
     Next
     ReDim Preserve w(1 To c)
@@ -162,11 +284,11 @@ End Sub
 Private Function ExtractZoteroPrefData() As String
     Dim prop As Variant
     Dim dict As Object
-    Set dict = CreateObject("Scripting.Dictionary")
+    Set dict = CreateDict()
 
     For Each prop In ActiveDocument.CustomDocumentProperties
         If Left(prop.Name, 11) = "ZOTERO_PREF" Then
-            dict(prop.Name) = prop.Value
+            dict.Item(prop.Name) = prop.Value
         End If
     Next prop
     
@@ -177,56 +299,161 @@ Private Function ExtractZoteroPrefData() As String
     Dim concatenatedValues As String
     Dim key As Variant
     For Each key In sortedKeys
-        concatenatedValues = concatenatedValues & dict(key)
+        concatenatedValues = concatenatedValues & dict.Item(key)
     Next key
 
     ExtractZoteroPrefData = concatenatedValues
 End Function
 
-Private Function GetZoteroPrefsFromXml(zoteroData As String) As Object
-    Dim xmlDoc As Object
-    Set xmlDoc = CreateObject("MSXML2.DOMDocument.6.0")
-
-    xmlDoc.Async = False
-    xmlDoc.LoadXML zoteroData
-
-    Dim dict As Object
-    Set dict = CreateObject("Scripting.Dictionary")
-
-    If xmlDoc.ParseError.ErrorCode <> 0 Then
-        MsgBox "XML Parse Error: " & xmlDoc.ParseError.Reason
-        Set GetZoteroPrefs = dict
+' Extract an attribute value from the first matching XML tag (for macOS compatibility)
+Private Function GetXmlTagAttribute(ByVal xml As String, ByVal tagName As String, ByVal attrName As String) As String
+    Dim pos As Long
+    pos = InStr(1, xml, "<" & tagName, vbTextCompare)
+    If pos = 0 Then
+        GetXmlTagAttribute = ""
         Exit Function
     End If
 
-    Dim dataElem As Object
-    Set dataElem = xmlDoc.SelectSingleNode("//data")
-    If Not dataElem Is Nothing Then
-        dict("data-version") = dataElem.getAttribute("data-version")
-        dict("zotero-version") = dataElem.getAttribute("zotero-version")
-    End If
-    
-    Dim sessionElem As Object
-    Set sessionElem = xmlDoc.SelectSingleNode("//session")
-    If Not sessionElem Is Nothing Then
-        dict("session-id") = sessionElem.getAttribute("id")
+    Dim tagEnd As Long
+    tagEnd = InStr(pos, xml, ">")
+    If tagEnd = 0 Then
+        GetXmlTagAttribute = ""
+        Exit Function
     End If
 
-    Dim styleElem As Object
-    Set styleElem = xmlDoc.SelectSingleNode("//style")
-    If Not styleElem Is Nothing Then
-        Dim segments() As String
-        segments = Split(styleElem.getAttribute("id"), "/")
-        dict("style-id") = segments(UBound(segments))
-        dict("hasBibliography") = styleElem.getAttribute("hasBibliography")
-        dict("bibliographyStyleHasBeenSet") = styleElem.getAttribute("bibliographyStyleHasBeenSet")
+    Dim tagContent As String
+    tagContent = Mid(xml, pos, tagEnd - pos + 1)
+
+    Dim attrPos As Long
+    attrPos = InStr(1, tagContent, attrName & "=""", vbTextCompare)
+    If attrPos = 0 Then
+        GetXmlTagAttribute = ""
+        Exit Function
     End If
 
-    Dim prefElem As Object
-    Set prefElem = xmlDoc.SelectSingleNode("//prefs/pref[@name='fieldType']")
-    If Not prefElem Is Nothing Then
-        dict("pref-fieldType") = prefElem.getAttribute("value")
+    Dim valueStart As Long
+    valueStart = attrPos + Len(attrName) + 2
+    Dim valueEnd As Long
+    valueEnd = InStr(valueStart, tagContent, """")
+    If valueEnd = 0 Then
+        GetXmlTagAttribute = ""
+        Exit Function
     End If
+
+    GetXmlTagAttribute = Mid(tagContent, valueStart, valueEnd - valueStart)
+End Function
+
+' Find a <pref> tag with a specific name attribute and return its value attribute (for macOS compatibility)
+Private Function GetXmlPrefValue(ByVal xml As String, ByVal prefName As String) As String
+    Dim searchPattern As String
+    searchPattern = "name=""" & prefName & """"
+
+    Dim pos As Long
+    pos = 1
+    Do
+        pos = InStr(pos, xml, "<pref", vbTextCompare)
+        If pos = 0 Then
+            GetXmlPrefValue = ""
+            Exit Function
+        End If
+
+        Dim tagEnd As Long
+        tagEnd = InStr(pos, xml, ">")
+        If tagEnd = 0 Then
+            GetXmlPrefValue = ""
+            Exit Function
+        End If
+
+        Dim tagContent As String
+        tagContent = Mid(xml, pos, tagEnd - pos + 1)
+
+        If InStr(1, tagContent, searchPattern, vbTextCompare) > 0 Then
+            Dim attrPos As Long
+            attrPos = InStr(1, tagContent, "value=""", vbTextCompare)
+            If attrPos = 0 Then
+                GetXmlPrefValue = ""
+                Exit Function
+            End If
+
+            Dim valueStart As Long
+            valueStart = attrPos + 7
+            Dim valueEnd As Long
+            valueEnd = InStr(valueStart, tagContent, """")
+            If valueEnd = 0 Then
+                GetXmlPrefValue = ""
+                Exit Function
+            End If
+
+            GetXmlPrefValue = Mid(tagContent, valueStart, valueEnd - valueStart)
+            Exit Function
+        End If
+
+        pos = tagEnd + 1
+    Loop
+End Function
+
+Private Function GetZoteroPrefsFromXml(zoteroData As String) As Object
+    Dim dict As Object
+    Set dict = CreateDict()
+
+    #If Mac Then
+        dict.Item("data-version") = GetXmlTagAttribute(zoteroData, "data", "data-version")
+        dict.Item("zotero-version") = GetXmlTagAttribute(zoteroData, "data", "zotero-version")
+        dict.Item("session-id") = GetXmlTagAttribute(zoteroData, "session", "id")
+
+        Dim styleIdFull As String
+        styleIdFull = GetXmlTagAttribute(zoteroData, "style", "id")
+        If Len(styleIdFull) > 0 Then
+            Dim segments() As String
+            segments = Split(styleIdFull, "/")
+            dict.Item("style-id") = segments(UBound(segments))
+            dict.Item("hasBibliography") = GetXmlTagAttribute(zoteroData, "style", "hasBibliography")
+            dict.Item("bibliographyStyleHasBeenSet") = GetXmlTagAttribute(zoteroData, "style", "bibliographyStyleHasBeenSet")
+        End If
+
+        dict.Item("pref-fieldType") = GetXmlPrefValue(zoteroData, "fieldType")
+    #Else
+        Dim xmlDoc As Object
+        Set xmlDoc = CreateObject("MSXML2.DOMDocument.6.0")
+
+        xmlDoc.Async = False
+        xmlDoc.LoadXML zoteroData
+
+        If xmlDoc.ParseError.ErrorCode <> 0 Then
+            MsgBox "XML Parse Error: " & xmlDoc.ParseError.Reason
+            Set GetZoteroPrefsFromXml = dict
+            Exit Function
+        End If
+
+        Dim dataElem As Object
+        Set dataElem = xmlDoc.SelectSingleNode("//data")
+        If Not dataElem Is Nothing Then
+            dict.Item("data-version") = dataElem.getAttribute("data-version")
+            dict.Item("zotero-version") = dataElem.getAttribute("zotero-version")
+        End If
+
+        Dim sessionElem As Object
+        Set sessionElem = xmlDoc.SelectSingleNode("//session")
+        If Not sessionElem Is Nothing Then
+            dict.Item("session-id") = sessionElem.getAttribute("id")
+        End If
+
+        Dim styleElem As Object
+        Set styleElem = xmlDoc.SelectSingleNode("//style")
+        If Not styleElem Is Nothing Then
+            Dim segments() As String
+            segments = Split(styleElem.getAttribute("id"), "/")
+            dict.Item("style-id") = segments(UBound(segments))
+            dict.Item("hasBibliography") = styleElem.getAttribute("hasBibliography")
+            dict.Item("bibliographyStyleHasBeenSet") = styleElem.getAttribute("bibliographyStyleHasBeenSet")
+        End If
+
+        Dim prefElem As Object
+        Set prefElem = xmlDoc.SelectSingleNode("//prefs/pref[@name='fieldType']")
+        If Not prefElem Is Nothing Then
+            dict.Item("pref-fieldType") = prefElem.getAttribute("value")
+        End If
+    #End If
 
     Set GetZoteroPrefsFromXml = dict
 End Function
@@ -236,19 +463,19 @@ Private Function GetZoteroPrefsFromJson(zoteroData As String) As Object
     Set jsonObj = ParseJSON(Trim(zoteroData), "prefs")
 
     Dim dict As Object
-    Set dict = CreateObject("Scripting.Dictionary")
+    Set dict = CreateDict()
 
-    dict("data-version") = jsonObj("prefs.dataVersion")
-    dict("zotero-version") = jsonObj("prefs.zoteroVersion")
-    dict("session-id") = jsonObj("prefs.sessionID")
+    dict.Item("data-version") = jsonObj.Item("prefs.dataVersion")
+    dict.Item("zotero-version") = jsonObj.Item("prefs.zoteroVersion")
+    dict.Item("session-id") = jsonObj.Item("prefs.sessionID")
 
     Dim segments() As String
-    segments = Split(jsonObj("prefs.style.styleID"), "/")
-    dict("style-id") = segments(UBound(segments))
-    dict("hasBibliography") = jsonObj("prefs.style.hasBibliography")
-    dict("bibliographyStyleHasBeenSet") = jsonObj("prefs.style.bibliographyStyleHasBeenSet")
+    segments = Split(jsonObj.Item("prefs.style.styleID"), "/")
+    dict.Item("style-id") = segments(UBound(segments))
+    dict.Item("hasBibliography") = jsonObj.Item("prefs.style.hasBibliography")
+    dict.Item("bibliographyStyleHasBeenSet") = jsonObj.Item("prefs.style.bibliographyStyleHasBeenSet")
 
-    dict("pref-fieldType") = jsonObj("prefs.prefs.fieldType")
+    dict.Item("pref-fieldType") = jsonObj.Item("prefs.prefs.fieldType")
 
     Set GetZoteroPrefsFromJson = dict
 End Function
@@ -272,20 +499,38 @@ Private Function GetZoteroPrefs() As Object
 End Function
 
 Private Function RemoveSpecifiedHtmlTags(inputString As String, tagsToRemove As Variant) As String
-    Dim regex As Object
     Dim tag As Variant
 
-    Set regex = CreateObject("VBScript.RegExp")
+    #If Mac Then
+        Dim pos As Long, endPos As Long
+        For Each tag In tagsToRemove
+            ' Remove closing tags: </tag>
+            inputString = Replace(inputString, "</" & tag & ">", "", Compare:=vbTextCompare)
+            ' Remove simple opening tags: <tag>
+            inputString = Replace(inputString, "<" & tag & ">", "", Compare:=vbTextCompare)
+            ' Remove opening tags with attributes: <tag ...>
+            Do
+                pos = InStr(1, inputString, "<" & tag & " ", vbTextCompare)
+                If pos = 0 Then Exit Do
+                endPos = InStr(pos, inputString, ">")
+                If endPos = 0 Then Exit Do
+                inputString = Left(inputString, pos - 1) & Mid(inputString, endPos + 1)
+            Loop
+        Next tag
+    #Else
+        Dim regex As Object
+        Set regex = CreateObject("VBScript.RegExp")
 
-    For Each tag In tagsToRemove
-        With regex
-            .Global = True
-            .IgnoreCase = True
-            .Pattern = "</?" & tag & ".*?>"
-            inputString = .Replace(inputString, "")
-        End With
-    Next tag
-    
+        For Each tag In tagsToRemove
+            With regex
+                .Global = True
+                .IgnoreCase = True
+                .Pattern = "</?" & tag & ".*?>"
+                inputString = .Replace(inputString, "")
+            End With
+        Next tag
+    #End If
+
     RemoveSpecifiedHtmlTags = inputString
 End Function
 
@@ -431,7 +676,7 @@ Private Sub ExtractAuthorYearCitations(field As Field, ByRef citations() As Cita
                 citations(rangeIndex).Start = startChar
                 citations(rangeIndex).End = endChar
                 citations(rangeIndex).BibPattern = RemoveHtmlTags( _
-                    json("CSL.citationItems(" & rangeIndex & ").itemData.title"))
+                    json.Item("CSL.citationItems(" & rangeIndex & ").itemData.title"))
 
                 inCitation = False
             End If
@@ -491,7 +736,7 @@ Private Sub ExtractNumberInBrackets(field As Field, ByRef citations() As Citatio
                     .Start = startChar
                     .End = endChar
                     .BibPattern = RemoveHtmlTags( _
-                        json("CSL.citationItems(" & rangeIndex & ").itemData.title"))
+                        json.Item("CSL.citationItems(" & rangeIndex & ").itemData.title"))
                 End With
             End If
             inBrackets = False
@@ -584,7 +829,7 @@ Private Sub ExtractSerialNumberCitations(field As Field, ByRef citations() As Ci
                 citations(rangeIndex).Start = startChar
                 citations(rangeIndex).End = endChar
                 citations(rangeIndex).BibPattern = RemoveHtmlTags( _
-                    json("CSL.citationItems(" & citOrder & ").itemData.title"))
+                    json.Item("CSL.citationItems(" & citOrder & ").itemData.title"))
 
                 If Len(citations(rangeIndex).BibPattern) = 0 Then
                     Err.Raise vbObjectError + 1, "ExtractCitations", "Can not find citation CSL data"
@@ -709,7 +954,7 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
     ' Do not support Bookmark-type citations
     Dim prefs As Object
     Set prefs = GetZoteroPrefs()
-    If Not prefs("pref-fieldType") = "Field" Then
+    If Not prefs.Item("pref-fieldType") = "Field" Then
         MsgBox "Only support 'Fields' type citations" & vbCrLf & vbCrLf & _
             "Click on Document Preferences in Word, then expand the Advanced Options section. " & _
             "This will allow you to verify whether the 'Store citation as bookmarks' option was accidentally enabled.", _
@@ -718,7 +963,7 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
     End If
 
     Dim styleId As String
-    styleId = prefs("style-id")
+    styleId = prefs.Item("style-id")
     If Not isSupportedStyle(styleId) Then
         MsgBox "The current citation style is not yet supported: " & styleId, vbCritical, "Error"
         Exit Sub

@@ -33,18 +33,25 @@ This guide is aimed at beginners and provides detailed instructions on importing
 
 ### Prerequisites
 
-- Microsoft Word (2016 or later recommended for compatibility).
+- Microsoft Word (2016 or later recommended for compatibility, both Windows and macOS).
 - The [`ZoteroLinkCitation.bas`](https://raw.githubusercontent.com/altairwei/ZoteroLinkCitation/master/ZoteroLinkCitation.bas) file.
+- **macOS only**: The [`CustomDictionary.cls`](https://raw.githubusercontent.com/altairwei/ZoteroLinkCitation/master/CustomDictionary.cls) file (a lightweight Dictionary replacement since `Scripting.Dictionary` is not available on macOS).
 
 ### Step 1: Accessing the VBA Editor
 
 1. Open Microsoft Word.
-2. Press `Alt` + `F11` to open the Visual Basic for Applications (VBA) Editor.
+2. Press `Alt` + `F11` (Windows) or `⌥ Option` + `F11` (macOS) to open the Visual Basic for Applications (VBA) Editor.
 
 ### Step 2: Importing the VB Script
 
 1. Within the VBA Editor, locate `Normal` in the Project window on the left. Right-click on `Normal` choose `Import File...`.
 2. Locate and select your `ZoteroLinkCitation.bas` file, then click `Open` to import the script.
+3. **macOS only**: Add the `CustomDictionary` class module:
+   - Go to Insert > Class Module (a new `Class1` appears).
+   - Click the new class module, then open the Properties window (View > Properties Window, or press `F4`).
+   - Change the `(Name)` property from `Class1` to `CustomDictionary`.
+   - Paste the full contents of `CustomDictionary.cls` into this class module.
+   - If you cannot see the Properties window, press `F4` or use View > Properties Window.
 
 ### Step 3: Saving Your Macro-Enabled Document
 
@@ -75,7 +82,7 @@ Adjust Word’s macro settings to allow the macro to run:
 
 #### Method 2: Shortcut Key
 
-Press `Alt` + `F8`, find and select `ZoteroLinkCitationAll` from the list, then click `Run`.
+Press `Alt` + `F8` (Windows) or `⌥ Option` + `F8` (macOS), find and select `ZoteroLinkCitationAll` from the list, then click `Run`.
 
 #### Method 3: Add a Button
 
@@ -132,6 +139,7 @@ This problem is nearly impossible to resolve with VBA scripts, and currently, th
 * [IEEE](http://www.zotero.org/styles/ieee)
 * [Nature](http://www.zotero.org/styles/nature)
 * [Vancouver](http://www.zotero.org/styles/vancouver)
+* [ACM SIG Proceedings](https://www.zotero.org/styles/acm-sig-proceedings)
 
 ### Author-only styles
 

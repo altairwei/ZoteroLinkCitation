@@ -927,6 +927,29 @@ End Sub
 ' ZoteroLinkCitation Macro
 '-------------------------------------------------------------------
 
+' Collect fields from the main text, footnotes and endnotes.
+' ActiveDocument.Fields only returns the fields of the main text story.
+Private Function GetAllFields() As Collection
+    Dim result As New Collection
+    Dim stories As Variant, st As Variant
+    Dim sr As Range, fld As Field
+
+    stories = Array(wdMainTextStory, wdFootnotesStory, wdEndnotesStory)
+    For Each st In stories
+        Set sr = Nothing
+        On Error Resume Next
+        Set sr = ActiveDocument.StoryRanges(CLng(st))
+        On Error GoTo 0
+        If Not sr Is Nothing Then
+            For Each fld In sr.Fields
+                result.Add fld
+            Next fld
+        End If
+    Next st
+
+    Set GetAllFields = result
+End Function
+
 Public Sub ZoteroLinkCitationWithinSelection()
     If Selection.Fields.Count > 0 Then
         Dim originalRng As Range
@@ -961,7 +984,7 @@ Public Sub ZoteroLinkCitationAll()
     ' Disable screen updating for performance
     Application.ScreenUpdating = False
 
-    Call ZoteroLinkCitation(ActiveDocument.Fields, debugging)
+    Call ZoteroLinkCitation(GetAllFields(), debugging)
 
     ' Restore the original selection
     ActiveWindow.ScrollIntoView originalRng, True
@@ -978,7 +1001,7 @@ Public Sub ZoteroLinkCitationAllNoPrompt()
 
     Application.ScreenUpdating = False
 
-    Call ZoteroLinkCitation(ActiveDocument.Fields, False, False)
+    Call ZoteroLinkCitation(GetAllFields(), False, False)
 
     ActiveWindow.ScrollIntoView originalRng, True
     originalRng.Select
@@ -1066,7 +1089,9 @@ Private Sub ZoteroLinkCitation(targetFields, Optional debugging As Boolean = Fal
                 For i = 0 To UBound(cits)
                     cit = cits(i)
                     Dim rng As Range
-                    Set rng = aField.Result.Document.Range(Start:=cit.Start, End:=cit.End)
+                    ' Preserve the citation's story when using footnote or endnote positions.
+                    Set rng = aField.Result.Duplicate
+                    rng.SetRange cit.Start, cit.End
                     tempBookmarkName = "ZoteroLinkCitationTempBookmark" & i
                     ActiveDocument.Bookmarks.Add Name:=tempBookmarkName, Range:=rng
                 Next i
